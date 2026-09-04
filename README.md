@@ -1,7 +1,4 @@
-from pathlib import Path
-import zipfile
-
-readme = """# 🕌 نور العترة | Noor Al-Atra
+# 🕌 نور العترة | Noor Al-Atra
 
 <div align="center">
 
@@ -154,21 +151,3 @@ readme = """# 🕌 نور العترة | Noor Al-Atra
 
 **© 2026 نور العترة**  
 **© المهندس محمد شهيد الاعجيبي**
-"""
-
-path = Path("/mnt/data/README.md")
-path.write_text(readme, encoding="utf-8")
-
-# Also create a ZIP containing README + the screenshot folder if the supplied ZIP exists.
-zip_path = Path("/mnt/data/Noor_Al_Atra_README_Ready.zip")
-screenshot_zip = Path("/mnt/data/Noor_Al_Atra_README_Screenshots.zip")
-
-with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-    z.write(path, "README.md")
-    if screenshot_zip.exists():
-        with zipfile.ZipFile(screenshot_zip, "r") as sz:
-            for name in sz.namelist():
-                z.writestr(name, sz.read(name))
-
-print(path)
-print(zip_path)
