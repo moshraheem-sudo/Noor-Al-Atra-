@@ -1,0 +1,8 @@
+{
+  "name": "نور العترة",
+  "description": "تطبيق نور العترة - معلومات وتواريخ النبي وأهل بيته الأطهار (عليهم السلام) والقرآن الكريم والعبادات",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
