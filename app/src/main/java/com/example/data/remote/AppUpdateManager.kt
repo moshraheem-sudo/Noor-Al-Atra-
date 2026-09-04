@@ -48,9 +48,9 @@ sealed class DownloadState {
 object AppUpdateManager {
     const val QURAN_APP_NAME = "صوت القرآن"
     val QURAN_CURRENT_VERSION = "v" + com.example.BuildConfig.VERSION_NAME
-    const val QURAN_CHECK_API = "https://api.github.com/repos/moshraheem-sudo/Sawt_AL_Quran/releases/latest"
-    const val QURAN_RELEASE_PAGE = "https://github.com/moshraheem-sudo/Sawt_AL_Quran/releases/latest"
-    const val QURAN_DIRECT_APK = "https://github.com/moshraheem-sudo/Sawt_AL_Quran/releases/latest/download/app-release.apk"
+    const val QURAN_CHECK_API = "https://api.github.com/repos/moshraheem-sudo/Sawt-Al-Quran-/releases/latest"
+    const val QURAN_RELEASE_PAGE = "https://github.com/moshraheem-sudo/Sawt-Al-Quran-/releases/latest"
+    const val QURAN_DIRECT_APK = "https://github.com/moshraheem-sudo/Sawt-Al-Quran-/releases/latest/download/app-release.apk"
 
     const val NOUR_APP_NAME = "نور العترة"
     val NOUR_CURRENT_VERSION = "v" + com.example.BuildConfig.VERSION_NAME
@@ -107,11 +107,11 @@ object AppUpdateManager {
             e.printStackTrace()
         }
 
-        // 2. Try resolving through all releases list of Sawt_AL_Quran
+        // 2. Try resolving through all releases list of Sawt-Al-Quran-
         try {
             val listRequest = Request.Builder()
-                .url("https://api.github.com/repos/moshraheem-sudo/Sawt_AL_Quran/releases")
-                .header("User-Agent", "SawtALQuranApp/1.40.0")
+                .url("https://api.github.com/repos/moshraheem-sudo/Sawt-Al-Quran-/releases")
+                .header("User-Agent", "SawtALQuranApp/${com.example.BuildConfig.VERSION_NAME}")
                 .header("Accept", "application/vnd.github.v3+json")
                 .build()
             client.newCall(listRequest).execute().use { response ->
@@ -163,7 +163,7 @@ object AppUpdateManager {
 
         // 4. Fallback direct URLs
         if (!candidates.contains(QURAN_DIRECT_APK)) candidates.add(QURAN_DIRECT_APK)
-        candidates.add("https://github.com/moshraheem-sudo/Sawt_AL_Quran/releases/download/v1.0.0/app-release.apk")
+        candidates.add("https://github.com/moshraheem-sudo/Sawt-Al-Quran-/releases/latest/download/app-release.apk")
         candidates.add("https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/latest/download/app-release.apk")
 
         var downloadSuccess = false
@@ -220,63 +220,97 @@ object AppUpdateManager {
 
     suspend fun checkQuranUpdate(): Result<AppReleaseInfo> = withContext(Dispatchers.IO) {
         try {
+            // 1. Try checking latest release endpoint
             val request = Request.Builder()
                 .url(QURAN_CHECK_API)
-                .header("User-Agent", "SawtALQuranApp/1.40.0")
+                .header("User-Agent", "SawtALQuranApp/${com.example.BuildConfig.VERSION_NAME}")
                 .header("Accept", "application/vnd.github.v3+json")
                 .build()
 
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    return@withContext Result.success(
-                        AppReleaseInfo(
-                            appName = QURAN_APP_NAME,
-                            tagName = QURAN_CURRENT_VERSION,
-                            releaseName = "تحديث تطبيق صوت القرآن",
-                            releaseNotes = "تحديث تلاوات وتحسين أداء وإصلاحات عامة.",
-                            downloadUrl = QURAN_DIRECT_APK,
-                            htmlUrl = QURAN_RELEASE_PAGE,
-                            isNewerAvailable = false
-                        )
-                    )
-                }
-
-                val bodyStr = response.body?.string() ?: ""
-                val json = JSONObject(bodyStr)
-                val tagName = json.optString("tag_name", QURAN_CURRENT_VERSION)
-                val releaseName = json.optString("name", "تحديث صوت القرآن الكريم")
-                val releaseNotes = json.optString("body", "يتضمن هذا التحديث تحسينات وإصلاحات عامة لتطبيق صوت القرآن الكريم.").ifBlank {
-                    "يتضمن هذا التحديث تحسينات وإصلاحات عامة لتطبيق صوت القرآن الكريم."
-                }
-                val htmlUrl = json.optString("html_url", QURAN_RELEASE_PAGE)
-
-                var downloadUrl = QURAN_DIRECT_APK
-                val assets = json.optJSONArray("assets")
-                if (assets != null && assets.length() > 0) {
-                    for (i in 0 until assets.length()) {
-                        val asset = assets.getJSONObject(i)
-                        val assetUrl = asset.optString("browser_download_url", "")
-                        if (assetUrl.contains(".apk", ignoreCase = true)) {
-                            downloadUrl = assetUrl
-                            break
+            var latestJson: JSONObject? = null
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val bodyStr = response.body?.string() ?: ""
+                        if (bodyStr.isNotBlank() && bodyStr.startsWith("{")) {
+                            latestJson = JSONObject(bodyStr)
                         }
                     }
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
-                val isNewer = isVersionNewer(tagName, QURAN_CURRENT_VERSION)
+            // 2. If latest release endpoint wasn't successful (e.g. 404), check releases list
+            if (latestJson == null) {
+                try {
+                    val listReq = Request.Builder()
+                        .url("https://api.github.com/repos/moshraheem-sudo/Sawt-Al-Quran-/releases")
+                        .header("User-Agent", "SawtALQuranApp/${com.example.BuildConfig.VERSION_NAME}")
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .build()
+                    client.newCall(listReq).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val bodyStr = response.body?.string() ?: ""
+                            val array = org.json.JSONArray(bodyStr)
+                            if (array.length() > 0) {
+                                latestJson = array.getJSONObject(0)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
 
-                Result.success(
+            if (latestJson == null) {
+                return@withContext Result.success(
                     AppReleaseInfo(
                         appName = QURAN_APP_NAME,
-                        tagName = tagName,
-                        releaseName = releaseName,
-                        releaseNotes = releaseNotes,
-                        downloadUrl = downloadUrl,
-                        htmlUrl = htmlUrl,
-                        isNewerAvailable = isNewer
+                        tagName = QURAN_CURRENT_VERSION,
+                        releaseName = "تحديث تطبيق صوت القرآن",
+                        releaseNotes = "تطبيق صوت القرآن الكريم بالتلاوات والأدعية المباركة.",
+                        downloadUrl = QURAN_DIRECT_APK,
+                        htmlUrl = "https://github.com/moshraheem-sudo/Sawt-Al-Quran-",
+                        isNewerAvailable = false
                     )
                 )
             }
+
+            val json = latestJson!!
+            val tagName = json.optString("tag_name", QURAN_CURRENT_VERSION)
+            val releaseName = json.optString("name", "تحديث صوت القرآن الكريم")
+            val releaseNotes = json.optString("body", "يتضمن هذا التحديث تحسينات وإصلاحات عامة لتطبيق صوت القرآن الكريم.").ifBlank {
+                "يتضمن هذا التحديث تحسينات وإصلاحات عامة لتطبيق صوت القرآن الكريم."
+            }
+            val htmlUrl = json.optString("html_url", QURAN_RELEASE_PAGE)
+
+            var downloadUrl = QURAN_DIRECT_APK
+            val assets = json.optJSONArray("assets")
+            if (assets != null && assets.length() > 0) {
+                for (i in 0 until assets.length()) {
+                    val asset = assets.getJSONObject(i)
+                    val assetUrl = asset.optString("browser_download_url", "")
+                    if (assetUrl.contains(".apk", ignoreCase = true)) {
+                        downloadUrl = assetUrl
+                        break
+                    }
+                }
+            }
+
+            val isNewer = isVersionNewer(tagName, QURAN_CURRENT_VERSION)
+
+            Result.success(
+                AppReleaseInfo(
+                    appName = QURAN_APP_NAME,
+                    tagName = tagName,
+                    releaseName = releaseName,
+                    releaseNotes = releaseNotes,
+                    downloadUrl = downloadUrl,
+                    htmlUrl = htmlUrl,
+                    isNewerAvailable = isNewer
+                )
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }

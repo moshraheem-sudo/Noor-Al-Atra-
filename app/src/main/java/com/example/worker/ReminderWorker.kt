@@ -80,8 +80,8 @@ class ReminderWorker(appContext: Context, workerParams: WorkerParameters) : Work
             sharedPref.edit().putString("last_reminder_msg", reminderMessage).apply()
         }
 
-        // Schedule next reminder (at least 60 minutes to respect 1 notification per hour limit)
-        val delayMinutes = 60L
+        // Schedule next reminder based on notificationsPerHour (e.g., 20 mins for 3/hr, 6 mins for 10/hr)
+        val delayMinutes = (60 / notificationsPerHour).coerceIn(6, 20).toLong()
         val nextWorkRequest = OneTimeWorkRequestBuilder<ReminderWorker>()
             .setInitialDelay(delayMinutes, TimeUnit.MINUTES)
             .build()
@@ -101,19 +101,44 @@ class ReminderWorker(appContext: Context, workerParams: WorkerParameters) : Work
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Reminders",
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
+                "تذكيرات وعبادات أهل البيت (ع)",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "إشعارات التذكيرات والأدعية والزيارات اليومية"
+                enableLights(true)
+                enableVibration(true)
+                setShowBadge(true)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            }
             notificationManager.createNotificationChannel(channel)
         }
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_notification) // Use app icon
+
+        val openIntent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            context,
+            id,
+            openIntent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val largeIcon = com.example.util.AyahNotificationHelper.getAppLargeIcon(context)
+
+        val builder = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .build()
-        notificationManager.notify(id, notification)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
+        }
+
+        notificationManager.notify(id, builder.build())
     }
 }

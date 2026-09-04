@@ -847,12 +847,31 @@ fun SettingsDialog(
                                         }
 
                                         UpdateStatus.UP_TO_DATE -> {
-                                            Text(
-                                                text = "تطبيقك محدّث بأحدث إصدار متوفر بالفعل ($quranCurrentVersion)",
-                                                fontSize = 13.sp,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                textAlign = TextAlign.Center
-                                            )
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = "تطبيقك محدّث بأحدث إصدار متوفر بالفعل ($quranCurrentVersion)",
+                                                    fontSize = 13.sp,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        val intent = android.content.Intent(
+                                                            android.content.Intent.ACTION_VIEW,
+                                                            android.net.Uri.parse(AppUpdateManager.QURAN_RELEASE_PAGE)
+                                                        )
+                                                        context.startActivity(intent)
+                                                    },
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text("صفحة الإصدارات على GitHub 🌐", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -987,29 +1006,18 @@ fun SettingsDialog(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    // اسم المطور مع الأيقونة
-                                    Row(
+                                    // اسم المطور بتوسيط أنيق وبدون أيقونة
+                                    Text(
+                                        text = "المهندس محمد شهيد الأعاجيبي",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        textAlign = TextAlign.Center,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = "المهندس محمد شهيد الأعاجيبي",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontSize = 17.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Icon(
-                                            imageVector = Icons.Default.Person,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
+                                            .padding(vertical = 4.dp)
+                                    )
 
                                     // أزرار التواصل المصغرة بنمط الحبوب الأنيق (Pill Buttons)
                                     Row(
@@ -1168,14 +1176,14 @@ fun SettingsDialog(
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(56.dp)
+                                            .size(64.dp)
                                             .clip(CircleShape)
                                             .background(MaterialTheme.colorScheme.surface, CircleShape)
                                             .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         androidx.compose.foundation.Image(
-                                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_app_logo),
+                                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.noor),
                                             contentDescription = "أيقونة تطبيق نور العترة",
                                             modifier = Modifier
                                                 .fillMaxSize()
@@ -1235,7 +1243,7 @@ fun SettingsDialog(
                                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                                         ) {
                                             Text(
-                                                text = "الإصدار 3.60.0 (v${com.example.BuildConfig.VERSION_NAME})",
+                                                text = "الإصدار 3.70.0 (v${com.example.BuildConfig.VERSION_NAME})",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary
@@ -1259,21 +1267,36 @@ fun SettingsDialog(
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(vertical = 4.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    )
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Text(
                                             text = "حقوق النشر والملكية",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center
                                         )
                                         Text(
-                                            text = "جميع الحقوق محفوظة © 2026",
+                                            text = "جميع الحقوق محفوظة © 2026 م - 1448 هـ",
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = MaterialTheme.colorScheme.primary,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        Text(
+                                            text = "وقف إسلامي خيري لوجه الله تعالى",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                     HorizontalDivider(

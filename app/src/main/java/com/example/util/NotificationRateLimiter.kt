@@ -17,7 +17,7 @@ object NotificationRateLimiter {
     /**
      * Checks whether a notification can be posted right now.
      * If allowed, atomically records the current timestamp so subsequent concurrent workers
-     * or requests are blocked for the next hour.
+     * or requests are spaced appropriately based on the user's hourly notification rate setting.
      */
     @Synchronized
     fun canPostNotification(context: Context): Boolean {
@@ -25,8 +25,15 @@ object NotificationRateLimiter {
         val lastTime = prefs.getLong(KEY_LAST_NOTIFIED_TIME, 0L)
         val now = System.currentTimeMillis()
 
-        // If less than 1 hour has elapsed since the last notification, disallow
-        if (now - lastTime < COOLDOWN_INTERVAL_MS) {
+        // Read user's chosen notification rate (default 3, up to 10 per hour)
+        val ahlPrefs = context.getSharedPreferences("AhlAlBaytPrefs", Context.MODE_PRIVATE)
+        val rate = ahlPrefs.getInt("notifications_per_hour", 3).coerceIn(3, 10)
+        
+        // Cooldown spaced across the hour with a 1-minute safety window for timer execution tolerances
+        val minIntervalMs = ((60 * 60 * 1000L) / rate) - 60_000L
+
+        // If less than the required interval has elapsed since the last notification, disallow duplicate
+        if (now - lastTime < minIntervalMs) {
             return false
         }
 

@@ -558,18 +558,23 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                                         text = "معدل الإشعارات بالساعة",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                        maxLines = 1
                                     )
+                                    Spacer(modifier = Modifier.width(10.dp))
                                     Surface(
-                                        shape = RoundedCornerShape(8.dp),
+                                        shape = RoundedCornerShape(10.dp),
                                         color = MaterialTheme.colorScheme.primary
                                     ) {
                                         Text(
-                                            text = "${notificationsPerHour.toInt()} إشعارات / ساعة",
+                                            text = "${notificationsPerHour.toInt()} إشعارات",
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onPrimary,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                         )
                                     }
                                 }
@@ -595,9 +600,12 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                                 Text(
                                     text = "الحد الأدنى ٣ إشعارات، والحد الأقصى ١٠ إشعارات متنوعة خلال الساعة",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f),
+                                    lineHeight = 18.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 2.dp)
                                 )
                             }
                         }
@@ -1658,7 +1666,7 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
         }
 
         // Card: Developer Information Card (عن المطور والداعمين)
-        var isDeveloperCardExpanded by remember { mutableStateOf(true) }
+        var isDeveloperCardExpanded by remember { mutableStateOf(false) }
         Card(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             shape = RoundedCornerShape(20.dp),
@@ -1699,29 +1707,18 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // اسم المطور مع الأيقونة
-                        Row(
+                        // اسم المطور بتوسيط أنيق وبدون أيقونة
+                        Text(
+                            text = "المهندس محمد شهيد الأعاجيبي",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "المهندس محمد شهيد الأعاجيبي",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                                .padding(vertical = 4.dp)
+                        )
 
                         // أزرار التواصل المصغرة بنمط الحبوب الأنيق (Pill Buttons)
                         Row(
@@ -1867,7 +1864,7 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_app_logo),
+                        painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.noor),
                         contentDescription = "أيقونة تطبيق نور العترة",
                         modifier = Modifier
                             .fillMaxSize()
@@ -1937,7 +1934,7 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "الإصدار 3.60.0 (v${com.example.BuildConfig.VERSION_NAME})",
+                            text = "الإصدار 3.70.0 (v${com.example.BuildConfig.VERSION_NAME})",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -1965,21 +1962,36 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                 }
 
                 // 4. حقوق النشر والملكية
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = "حقوق النشر والملكية",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Text(
-                        text = "جميع الحقوق محفوظة © 2026",
+                        text = "جميع الحقوق محفوظة © 2026 م - 1448 هـ",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Text(
+                        text = "وقف إسلامي خيري لوجه الله تعالى",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
 

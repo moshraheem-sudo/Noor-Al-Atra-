@@ -111,6 +111,9 @@ object NotificationSettingsManager {
                 ExistingPeriodicWorkPolicy.KEEP,
                 eventRequest
             )
+
+            // 4. Exact AlarmManager Scheduling (ensures notifications arrive on time even when the app is completely closed)
+            com.example.receiver.NotificationAlarmScheduler.scheduleNextAlarm(context)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -135,6 +138,7 @@ object NotificationSettingsManager {
             workManager.cancelUniqueWork("DailyAyahWorker")
             workManager.cancelUniqueWork("ReminderWorkerChain")
             workManager.cancelUniqueWork("EventNotificationWorker")
+            com.example.receiver.NotificationAlarmScheduler.cancelAlarm(context)
         } catch (e: Exception) {
             e.printStackTrace()
         }

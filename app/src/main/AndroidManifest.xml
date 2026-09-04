@@ -78,6 +78,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".receiver.NotificationAlarmReceiver"
+            android:exported="false" />
+
         <activity android:name=".SawtQuranActivity" android:theme="@style/Theme.MyApplication" android:exported="false" />
 </application>
 
