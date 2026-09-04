@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Close
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.audio.AVAILABLE_RECITERS
@@ -58,25 +62,63 @@ fun DownloadFullQuranDialog(onDismiss: () -> Unit) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (progress != null) {
                     val p = progress!!
-                    val percentage = (p.currentSurah * 100) / p.totalSurahs
-                    Text(
-                        text = "جاري التحميل... سورة ${p.currentSurah} من ${p.totalSurahs}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    LinearProgressIndicator(
-                        progress = p.currentSurah / p.totalSurahs.toFloat(),
-                        modifier = Modifier.fillMaxWidth().height(8.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "يرجى عدم إغلاق التطبيق حتى يكتمل التنزيل للاستمتاع بالقراءة والتظليل بدون إنترنت.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
+                    
+                    if (p.isCompleted) {
+                        Text(
+                            text = "مكتمل بنجاح!",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFF388E3C),
+                            modifier = Modifier.padding(bottom = 8.dp).align(Alignment.CenterHorizontally),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "مكتمل",
+                            tint = Color(0xFF388E3C),
+                            modifier = Modifier.size(64.dp).align(Alignment.CenterHorizontally).padding(bottom = 16.dp)
+                        )
+                    } else {
+                        Text(
+                            text = if (p.isPaused) "تم إيقاف التحميل مؤقتاً..." else "جاري التحميل... سورة ${p.currentSurah} من ${p.totalSurahs}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (p.isPaused) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        LinearProgressIndicator(
+                            progress = p.currentSurah / p.totalSurahs.toFloat(),
+                            modifier = Modifier.fillMaxWidth().height(8.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (p.isPaused) {
+                                IconButton(onClick = { QuranAudioDownloader.resume() }) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = "استئناف", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            } else {
+                                IconButton(onClick = { QuranAudioDownloader.pause() }) {
+                                    Icon(Icons.Default.Pause, contentDescription = "إيقاف مؤقت", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            IconButton(onClick = { QuranAudioDownloader.cancel() }) {
+                                Icon(Icons.Default.Close, contentDescription = "إلغاء التحميل", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "يمكنك إخفاء هذه النافذة ومتابعة التحميل في الخلفية.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 } else {
                     Text(
                         text = "اختر القارئ لتحميل جميع سور القرآن الكريم للعمل بدون إنترنت:",
@@ -97,11 +139,11 @@ fun DownloadFullQuranDialog(onDismiss: () -> Unit) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { 
-                                            if (downloadedReciters[reciter.id] != true) {
+                                        .clickable {
+                                             if (downloadedReciters[reciter.id] != true) {
                                                  QuranAudioDownloader.downloadAll(context, reciter)
                                              } else {
-                                                 android.widget.Toast.makeText(context, "تم تنزيل هذا القارئ مسبقاً", android.widget.Toast.LENGTH_SHORT).show()
+                                                 Toast.makeText(context, "تم تنزيل هذا القارئ مسبقاً", Toast.LENGTH_SHORT).show()
                                              }
                                         }
                                         .padding(16.dp),
@@ -129,8 +171,16 @@ fun DownloadFullQuranDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(if (progress != null) "إخفاء" else "إلغاء")
+            TextButton(onClick = {
+                if (progress != null && !progress!!.isCompleted) {
+                    Toast.makeText(context, "التحميل مستمر. يمكنك المتابعة من زر التحميل أعلى الشاشة.", Toast.LENGTH_LONG).show()
+                }
+                if (progress?.isCompleted == true) {
+                    QuranAudioDownloader.cancel() // clear the progress state
+                }
+                onDismiss()
+            }) {
+                Text(if (progress != null && !progress!!.isCompleted) "إخفاء" else if (progress?.isCompleted == true) "إغلاق" else "إلغاء")
             }
         }
     )

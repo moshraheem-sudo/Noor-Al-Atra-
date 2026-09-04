@@ -12,6 +12,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.CircleShape
@@ -85,6 +90,7 @@ fun HomeScreen(
     val syncProgress by viewModel.syncProgress.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val quranDownloadProgress by com.example.audio.QuranAudioDownloader.downloadProgress.collectAsStateWithLifecycle()
     val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
     
     var lastRead by remember { mutableStateOf<LastReadItem?>(null) }
@@ -306,12 +312,22 @@ fun HomeScreen(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { showDownloadDialog = true }) {
-                        Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Default.CloudDownload,
-                            contentDescription = "تحميل المصحف كاملاً",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
+                    Box(modifier = Modifier.padding(2.dp)) {
+                        IconButton(onClick = { showDownloadDialog = true }) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.CloudDownload,
+                                contentDescription = "تحميل المصحف كاملاً",
+                                tint = if (quranDownloadProgress != null && quranDownloadProgress?.isCompleted != true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                        if (quranDownloadProgress != null && quranDownloadProgress?.isCompleted != true) {
+                            androidx.compose.material3.Badge(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 8.dp, end = 8.dp),
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                     IconButton(onClick = { showBookmarksSheet = true }) {
                         Icon(
@@ -657,6 +673,11 @@ fun SearchAyahItem(
 
 @Composable
 fun SurahItem(surah: SurahEntity, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var showExportMenu by remember { mutableStateOf(false) }
+    var isExporting by remember { mutableStateOf(false) }
+
     fun Int.toArabicNumerals(): String {
         val arabicNumerals = arrayOf('٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩')
         return this.toString().map { if (it.isDigit()) arabicNumerals[it - '0'] else it }.joinToString("")

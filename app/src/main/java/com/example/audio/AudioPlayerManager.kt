@@ -61,6 +61,8 @@ val SURAH_AYAH_COUNTS = intArrayOf(
 )
 
 class AudioPlayerManager {
+    var onSingleAyahComplete: (() -> Unit)? = null
+    
     private var mediaPlayer: MediaPlayer? = null
     private var applicationContext: android.content.Context? = null
 
@@ -179,34 +181,40 @@ class AudioPlayerManager {
             url
         }
 
-        mediaPlayer?.release()
-        mediaPlayer = MediaPlayer().apply {
-            setDataSource(dataSource)
-            setOnPreparedListener { 
-                it.start() 
-            }
-            setOnCompletionListener {
-                if (isContinuousMode) {
-                    if (currentAyahNumber < maxAyahs) {
-                        currentAyahNumber++
-                        playCurrent()
-                    } else if (currentSurahId < 114) {
-                        currentSurahId++
-                        currentAyahNumber = 1
-                        maxAyahs = SURAH_AYAH_COUNTS[currentSurahId - 1]
-                        playCurrent()
+        try {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(dataSource)
+                setOnPreparedListener { 
+                    it.start() 
+                }
+                setOnCompletionListener {
+                    if (isContinuousMode) {
+                        if (currentAyahNumber < maxAyahs) {
+                            currentAyahNumber++
+                            playCurrent()
+                        } else if (currentSurahId < 114) {
+                            currentSurahId++
+                            currentAyahNumber = 1
+                            maxAyahs = SURAH_AYAH_COUNTS[currentSurahId - 1]
+                            playCurrent()
+                        } else {
+                            stop()
+                        }
                     } else {
                         stop()
+                        onSingleAyahComplete?.invoke()
                     }
-                } else {
-                    stop()
                 }
+                setOnErrorListener { _, _, _ ->
+                    stop()
+                    true
+                }
+                prepareAsync()
             }
-            setOnErrorListener { _, _, _ ->
-                stop()
-                true
-            }
-            prepareAsync()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            stop()
         }
     }
 

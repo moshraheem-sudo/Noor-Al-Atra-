@@ -137,6 +137,36 @@ class QuranRepository(
         }
     }
 
+    suspend fun getAyahsDirect(surahId: Int): List<AyahEntity> {
+        val memCached = surahMemoryCache[surahId]
+        if (memCached != null && memCached.isNotEmpty()) {
+            return memCached
+        }
+        val dbAyahs = dao.getAyahsForSurahDirect(surahId)
+        if (dbAyahs.isNotEmpty()) {
+            surahMemoryCache[surahId] = dbAyahs
+            return dbAyahs
+        }
+        return try {
+            val response = api.getVersesByChapter(surahId)
+            val entities = response.verses.map { verse ->
+                val ayahNum = verse.verse_key.split(":")[1].toInt()
+                AyahEntity(
+                    surahId = surahId,
+                    ayahNumber = ayahNum,
+                    textUthmani = verse.text_uthmani
+                )
+            }
+            if (entities.isNotEmpty()) {
+                dao.insertAyahs(entities)
+                surahMemoryCache[surahId] = entities
+            }
+            entities
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     suspend fun syncAllQuranData(onProgress: (Int) -> Unit) {
         if (dao.getSurahsCount() == 0) {
             try {

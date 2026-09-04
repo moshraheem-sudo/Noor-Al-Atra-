@@ -96,17 +96,19 @@ fun AyahPosterDialog(
     val context = LocalContext.current
     var selectedTheme by remember { mutableStateOf(PosterTheme.EMERALD_GOLD) }
     var includeBasmala by remember { mutableStateOf(ayah.surahId != 9 && ayah.ayahNumber != 1) }
+    var includeSadaqallah by remember { mutableStateOf(false) }
     var fontSizeScale by remember { mutableStateOf(50f) }
     var isJustified by remember { mutableStateOf(true) }
 
     // Generate preview bitmap
-    val previewBitmap = remember(ayah, surahName, selectedTheme, includeBasmala, fontSizeScale, isJustified) {
+    val previewBitmap = remember(ayah, surahName, selectedTheme, includeBasmala, includeSadaqallah, fontSizeScale, isJustified) {
         generateAyahPosterBitmap(
             context = context,
             surahName = surahName,
             ayahNumber = ayah.ayahNumber,
             textUthmani = ayah.textUthmani,
             includeBasmala = includeBasmala,
+            includeSadaqallah = includeSadaqallah,
             theme = selectedTheme,
             textSizePx = fontSizeScale,
             isJustified = isJustified
@@ -207,6 +209,29 @@ fun AyahPosterDialog(
                             Switch(
                                 checked = includeBasmala,
                                 onCheckedChange = { includeBasmala = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color(0xFF09120D),
+                                    checkedTrackColor = Color(0xFFD4AF37)
+                                )
+                            )
+                        }
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "إضافة صدق الله العلي العظيم",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFFD0E0D4)
+                            )
+                            Switch(
+                                checked = includeSadaqallah,
+                                onCheckedChange = { includeSadaqallah = it },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color(0xFF09120D),
                                     checkedTrackColor = Color(0xFFD4AF37)
@@ -372,6 +397,7 @@ fun generateAyahPosterBitmap(
     ayahNumber: Int,
     textUthmani: String,
     includeBasmala: Boolean,
+    includeSadaqallah: Boolean,
     theme: PosterTheme,
     textSizePx: Float = 50f,
     isJustified: Boolean = true
@@ -385,17 +411,20 @@ fun generateAyahPosterBitmap(
         typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
     }
 
-    val fullAyahText = "$textUthmani ﴿${ayahNumber.toArabicNumerals()}﴾"
+    val fullAyahText = "$textUthmani ۝${ayahNumber.toArabicNumerals()}"
     val contentWidth = width - (basePadding * 2)
+    
+    val textWidth = textPaint.measureText(fullAyahText)
+    val isShortText = textWidth < contentWidth
 
-    val alignment = if (isJustified) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_CENTER
+    val alignment = if (isJustified && !isShortText) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_CENTER
 
     val staticLayout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         val builder = StaticLayout.Builder.obtain(fullAyahText, 0, fullAyahText.length, textPaint, contentWidth)
             .setAlignment(alignment)
             .setLineSpacing(20f, 1.25f)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isJustified) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isJustified && !isShortText) {
             builder.setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
         }
         builder.build()
@@ -406,7 +435,8 @@ fun generateAyahPosterBitmap(
 
     // Dynamic height based on text length and basmala
     val basmalaExtraHeight = if (includeBasmala) ((textSizePx * 1.5f).coerceAtLeast(70f)).toInt() else 0
-    val calculatedHeight = (staticLayout.height + 620 + basmalaExtraHeight).coerceAtLeast(1200)
+    val sadaqallahExtraHeight = if (includeSadaqallah) ((textSizePx * 1.2f).coerceAtLeast(60f)).toInt() else 0
+    val calculatedHeight = (staticLayout.height + 650 + basmalaExtraHeight + sadaqallahExtraHeight).coerceAtLeast(1200)
     val bitmap = Bitmap.createBitmap(width, calculatedHeight, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
 
@@ -478,7 +508,7 @@ fun generateAyahPosterBitmap(
     }
     canvas.drawLine(width / 2f - 180f, margin + 215f, width / 2f + 180f, margin + 215f, linePaint)
 
-    var currentY = margin + 270f
+    var currentY = margin + 295f
 
     // 5. Bismillah (if enabled)
     if (includeBasmala) {
@@ -489,7 +519,7 @@ fun generateAyahPosterBitmap(
             textAlign = Paint.Align.CENTER
         }
         canvas.drawText("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", width / 2f, currentY, basmalaPaint)
-        currentY += (textSizePx * 1.2f).coerceAtLeast(50f) + 30f
+        currentY += (textSizePx * 1.2f).coerceAtLeast(50f) + 40f
     }
 
     // Side Kashida lines if justification enabled
@@ -510,6 +540,20 @@ fun generateAyahPosterBitmap(
     canvas.translate(basePadding.toFloat(), currentY)
     staticLayout.draw(canvas)
     canvas.restore()
+    
+    currentY += staticLayout.height + 70f
+    
+    // 6.5 Draw Sadaqallah (if enabled)
+    if (includeSadaqallah) {
+        val sadaqallahPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = theme.accentColor.toArgb()
+            textSize = (textSizePx * 0.85f).coerceIn(26f, 85f)
+            typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText("صَدَقَ اللَّهُ العَلِيُّ العَظِيمُ", width / 2f, currentY, sadaqallahPaint)
+        currentY += (textSizePx * 1.2f).coerceAtLeast(40f)
+    }
 
     // 7. Footer: App branding at bottom
     val footerY = calculatedHeight - (margin + 80f)

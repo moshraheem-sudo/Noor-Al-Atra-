@@ -935,9 +935,62 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
     var qabasAyahNumber by remember { mutableIntStateOf(1) }
     var qabasSurahName by remember { mutableStateOf("الفاتحة") }
     var qabasAyahText by remember { mutableStateOf("بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ") }
+    var isQabasAutoAudioEnabled by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        val loadAyah: suspend () -> Unit = {
+    val audioPlayerManager = remember {
+        com.example.audio.AyahAudioState.getOrCreate(context)
+    }
+    val isAudioPlaying by audioPlayerManager.isPlaying.collectAsState()
+    val currentlyPlayingAyah by audioPlayerManager.currentPlayingAyah.collectAsState()
+    val currentReciter by audioPlayerManager.currentReciter.collectAsState()
+
+    var showPosterDialog by remember { mutableStateOf(false) }
+    var showReciterDialog by remember { mutableStateOf(false) }
+
+    val isQabasAyahPlaying = isAudioPlaying &&
+        currentlyPlayingAyah?.first == qabasSurahId &&
+        currentlyPlayingAyah?.second == qabasAyahNumber
+
+    val isAutoChangePaused by remember {
+        derivedStateOf {
+            isAudioPlaying || showReciterDialog || showPosterDialog
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (currentlyPlayingAyah?.first == qabasSurahId && currentlyPlayingAyah?.second == qabasAyahNumber) {
+                audioPlayerManager.stop()
+            }
+        }
+    }
+
+    LaunchedEffect(currentlyPlayingAyah) {
+        if (isAudioPlaying && currentlyPlayingAyah != null) {
+            val (sId, aNum) = currentlyPlayingAyah!!
+            if (sId != qabasSurahId || aNum != qabasAyahNumber) {
+                try {
+                    val ayah = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        quranRepo?.getAyahByNumber(sId, aNum)
+                    }
+                    if (ayah != null) {
+                        val sName = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            quranRepo?.getSurahNameById(ayah.surahId) ?: ""
+                        }
+                        qabasSurahId = ayah.surahId
+                        qabasAyahNumber = ayah.ayahNumber
+                        qabasSurahName = if (!sName.isNullOrBlank()) sName else "سورة رقم ${ayah.surahId}"
+                        qabasAyahText = ayah.textUthmani
+                    }
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }
+    }
+
+    val loadAyah: suspend () -> Unit = remember(quranRepo) {
+        {
             try {
                 val ayah = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     quranRepo?.getRandomAyah()
@@ -965,12 +1018,53 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                 qabasAyahText = fallback.text
             }
         }
+    }
 
+    LaunchedEffect(Unit) {
         loadAyah()
         while (true) {
             val delayTime = if (qabasAyahText.length > 100) 12000L else 8000L
             kotlinx.coroutines.delay(delayTime)
-            loadAyah()
+            
+            // Wait if paused or if auto audio is active (auto audio handles its own loading)
+            while (isAutoChangePaused || isQabasAutoAudioEnabled) {
+                kotlinx.coroutines.delay(1000L)
+            }
+            
+            // Re-check after the wait loop
+            if (!isAutoChangePaused && !isQabasAutoAudioEnabled) {
+                loadAyah()
+            }
+        }
+    }
+
+    var audioFinishedTrigger by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(audioPlayerManager) {
+        audioPlayerManager.onSingleAyahComplete = {
+            audioFinishedTrigger++
+        }
+        onDispose {
+            audioPlayerManager.onSingleAyahComplete = null
+        }
+    }
+
+    LaunchedEffect(audioFinishedTrigger, isQabasAutoAudioEnabled, showReciterDialog, showPosterDialog) {
+        if (isQabasAutoAudioEnabled && !audioPlayerManager.isPlaying.value && !showReciterDialog && !showPosterDialog) {
+            // Wait a small moment to ensure smooth transition after audio finishes
+            kotlinx.coroutines.delay(1000L) 
+            
+            // Check again in case it was disabled during the delay or started manually
+            if (isQabasAutoAudioEnabled && !audioPlayerManager.isPlaying.value) {
+                try {
+                    loadAyah()
+                    if (isQabasAutoAudioEnabled) {
+                        audioPlayerManager.playAyah(qabasSurahId, qabasAyahNumber, continuous = false)
+                    }
+                } catch (e: Exception) {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -1056,16 +1150,9 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                tint = themeTertiary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            
                             Text(
                                 text = "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ الطَّيِّبِينَ الطَّاهِرِينَ",
                                 style = MaterialTheme.typography.titleMedium,
@@ -1076,13 +1163,6 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(horizontal = 4.dp)
-                            )
-
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                tint = themeTertiary,
-                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
@@ -1125,17 +1205,9 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                         ) { targetShowHijri ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Right Gold Star ornament (RTL start)
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = themeTertiary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier.weight(1f)
@@ -1155,14 +1227,6 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
                                 }
-
-                                // Left Gold Star ornament (RTL end)
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = themeTertiary,
-                                    modifier = Modifier.size(14.dp)
-                                )
                             }
                         }
                     }
@@ -1490,6 +1554,7 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                                 ) {
                                     IconButton(
                                         onClick = {
+                                            audioPlayerManager.stop()
                                             homeCoroutineScope.launch {
                                                 try {
                                                     val ayah = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -1640,8 +1705,83 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                                     HorizontalDivider(
                                         color = frameBorderColor.copy(alpha = 0.35f),
                                         thickness = 0.8.dp,
-                                        modifier = Modifier.padding(top = 10.dp, bottom = 6.dp)
+                                        modifier = Modifier.padding(top = 10.dp, bottom = 8.dp)
                                     )
+
+                                    // شريط أزرار الآية: نسخ الآية، ومشاركة كصورة
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 2.dp, vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // 1. زر مشاركة الآية كصورة
+                                        Surface(
+                                            onClick = { showPosterDialog = true },
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = themeSecondaryContainer,
+                                            border = BorderStroke(1.dp, frameBorderColor.copy(alpha = 0.45f)),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Share,
+                                                    contentDescription = "مشاركة الآية كصورة",
+                                                    tint = frameBorderColor,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text(
+                                                    text = "مشاركة كصورة",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = themeOnSecondaryContainer,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+
+                                        // 2. زر نسخ النص
+                                        val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                                        Surface(
+                                            onClick = {
+                                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString("$qabasAyahText\n[$qabasSurahName: $qabasAyahNumber]"))
+                                                android.widget.Toast.makeText(context, "تم نسخ الآية", android.widget.Toast.LENGTH_SHORT).show()
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = themeSecondaryContainer,
+                                            border = BorderStroke(1.dp, frameBorderColor.copy(alpha = 0.45f)),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.ContentCopy,
+                                                    contentDescription = "نسخ النص",
+                                                    tint = frameBorderColor,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text(
+                                                    text = "نسخ النص",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = themeOnSecondaryContainer,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -1651,16 +1791,16 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                                         Icon(
                                             imageVector = Icons.Filled.MenuBook,
                                             contentDescription = null,
-                                            tint = frameBorderColor,
-                                            modifier = Modifier.size(14.dp)
+                                            tint = frameBorderColor.copy(alpha = 0.75f),
+                                            modifier = Modifier.size(12.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = "اضغط لفتح الآية في المصحف الشريف",
+                                            text = "اضغط على البطاقة لفتح الآية في المصحف الشريف",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = frameBorderColor,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp
+                                            color = frameBorderColor.copy(alpha = 0.75f),
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 10.5.sp
                                         )
                                     }
                                 }
@@ -1851,6 +1991,88 @@ fun PeopleListScreen(navController: NavHostController, onNavigateToTasbeeh: () -
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
+    }
+
+    if (showPosterDialog) {
+        val ayahEntity = remember(qabasSurahId, qabasAyahNumber, qabasAyahText) {
+            com.example.data.local.AyahEntity(
+                id = 0,
+                surahId = qabasSurahId,
+                ayahNumber = qabasAyahNumber,
+                textUthmani = qabasAyahText
+            )
+        }
+        com.example.ui.screens.AyahPosterDialog(
+            ayah = ayahEntity,
+            surahName = qabasSurahName,
+            onDismiss = { showPosterDialog = false }
+        )
+    }
+
+    if (showReciterDialog) {
+        AlertDialog(
+            onDismissRequest = { showReciterDialog = false },
+            modifier = Modifier
+                .widthIn(max = 320.dp)
+                .fillMaxWidth(0.85f),
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.RecordVoiceOver,
+                        contentDescription = null,
+                        tint = androidx.compose.ui.graphics.Color(0xFFB88E4C),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "اختر القارئ للآية",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.heightIn(max = 280.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(com.example.audio.AVAILABLE_RECITERS) { reciter ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    audioPlayerManager.setReciter(reciter)
+                                    if (isQabasAyahPlaying) {
+                                        audioPlayerManager.playAyah(qabasSurahId, qabasAyahNumber, continuous = false)
+                                    }
+                                    showReciterDialog = false
+                                }
+                                .padding(vertical = 8.dp, horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = currentReciter.id == reciter.id,
+                                onClick = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = reciter.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (currentReciter.id == reciter.id) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showReciterDialog = false }) {
+                    Text("إغلاق", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 }
 
