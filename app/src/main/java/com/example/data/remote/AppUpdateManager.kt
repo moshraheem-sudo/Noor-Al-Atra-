@@ -53,9 +53,9 @@ object AppUpdateManager {
     const val QURAN_DIRECT_APK = "https://github.com/moshraheem-sudo/Sawt_AL_Quran/releases/latest/download/app-release.apk"
 
     const val NOUR_APP_NAME = "نور العترة"
-    const val NOUR_CURRENT_VERSION = "v1.0.0"
-    const val NOUR_CHECK_API = "https://api.github.com/repos/moshraheem-sudo/myapp-updates/releases/latest"
-    const val NOUR_RELEASE_PAGE = "https://github.com/moshraheem-sudo/myapp-updates/releases/latest"
+    val NOUR_CURRENT_VERSION = "v" + com.example.BuildConfig.VERSION_NAME
+    const val NOUR_CHECK_API = "https://api.github.com/repos/moshraheem-sudo/Noor-Al-Atra-/releases/latest"
+    const val NOUR_RELEASE_PAGE = "https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/latest"
 
     private const val PREFS_NAME = "app_update_prefs"
     private const val KEY_POSTPONED_QURAN = "postponed_quran_version"
@@ -134,11 +134,11 @@ object AppUpdateManager {
             e.printStackTrace()
         }
 
-        // 3. Try resolving from myapp-updates repo
+        // 3. Try resolving from Noor-Al-Atra- repo
         try {
             val listRequest2 = Request.Builder()
-                .url("https://api.github.com/repos/moshraheem-sudo/myapp-updates/releases")
-                .header("User-Agent", "SawtALQuranApp/1.40.0")
+                .url("https://api.github.com/repos/moshraheem-sudo/Noor-Al-Atra-/releases")
+                .header("User-Agent", "NoorAlAtraApp/${com.example.BuildConfig.VERSION_NAME}")
                 .header("Accept", "application/vnd.github.v3+json")
                 .build()
             client.newCall(listRequest2).execute().use { response ->
@@ -164,7 +164,7 @@ object AppUpdateManager {
         // 4. Fallback direct URLs
         if (!candidates.contains(QURAN_DIRECT_APK)) candidates.add(QURAN_DIRECT_APK)
         candidates.add("https://github.com/moshraheem-sudo/Sawt_AL_Quran/releases/download/v1.0.0/app-release.apk")
-        candidates.add("https://github.com/moshraheem-sudo/myapp-updates/releases/latest/download/app-release.apk")
+        candidates.add("https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/latest/download/app-release.apk")
 
         var downloadSuccess = false
         var lastError = ""
@@ -298,7 +298,7 @@ object AppUpdateManager {
                             tagName = NOUR_CURRENT_VERSION,
                             releaseName = "تحديث تطبيق نور العترة",
                             releaseNotes = "تطبيق نور العترة بالأدعية والتلاوات المباركة.",
-                            downloadUrl = "https://github.com/moshraheem-sudo/myapp-updates/releases/latest/download/app-release.apk",
+                            downloadUrl = "https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/latest/download/app-release.apk",
                             htmlUrl = NOUR_RELEASE_PAGE,
                             isNewerAvailable = false
                         )
@@ -327,7 +327,7 @@ object AppUpdateManager {
                     }
                 }
                 if (downloadUrl.isEmpty()) {
-                    downloadUrl = "https://github.com/moshraheem-sudo/myapp-updates/releases/latest/download/app-release.apk"
+                    downloadUrl = "https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/latest/download/app-release.apk"
                 }
 
                 val isNewer = isVersionNewer(tagName, NOUR_CURRENT_VERSION)

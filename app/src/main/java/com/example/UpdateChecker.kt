@@ -26,7 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 object UpdateChecker {
-    private const val API_URL = "https://api.github.com/repos/moshraheem-sudo/myapp-updates/releases/latest"
+    private const val API_URL = "https://api.github.com/repos/moshraheem-sudo/Noor-Al-Atra-/releases/latest"
 
     // Update state for Compose UI & In-App Popups
     var isUpdateAvailable by mutableStateOf(false)
@@ -104,7 +104,7 @@ object UpdateChecker {
         downloadProgress = 0f
         downloadedSizeMb = 0f
         
-        val targetUrl = if (url.isNotEmpty()) url else "https://github.com/moshraheem-sudo/myapp-updates/releases/download/$version/app-release.apk"
+        val targetUrl = if (url.isNotEmpty()) url else "https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/download/$version/app-release.apk"
 
         downloadJob = CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -303,7 +303,7 @@ object UpdateChecker {
 
                 // 1. Fetch all releases from GitHub API to find the maximum version released
                 try {
-                    val listUrl = URL("https://api.github.com/repos/moshraheem-sudo/myapp-updates/releases")
+                    val listUrl = URL("https://api.github.com/repos/moshraheem-sudo/Noor-Al-Atra-/releases")
                     val conn = listUrl.openConnection() as HttpURLConnection
                     conn.requestMethod = "GET"
                     conn.setRequestProperty("User-Agent", "NoorAlAtraApp/$currentVersion")
@@ -394,7 +394,7 @@ object UpdateChecker {
                 // 4. Set fallback APK download URL if none found directly from assets
                 if (highestApkUrl.isEmpty()) {
                     val formattedTag = if (highestTag.startsWith("v", ignoreCase = true)) highestTag else "v$highestTag"
-                    highestApkUrl = "https://github.com/moshraheem-sudo/myapp-updates/releases/download/$formattedTag/app-release.apk"
+                    highestApkUrl = "https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/download/$formattedTag/app-release.apk"
                 }
 
                 // 5. Check if highest release is newer than currently installed app
