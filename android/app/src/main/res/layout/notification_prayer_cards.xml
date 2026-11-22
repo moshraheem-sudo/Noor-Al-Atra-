@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layoutDirection="rtl"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+
+    <!-- Fajr (الفجر) Box -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="1"
+        android:layout_marginStart="1.5dp"
+        android:layout_marginEnd="1.5dp"
+        android:background="@drawable/bg_prayer_card"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_title_fajr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="الفجر"
+            android:textColor="@color/notif_title_color"
+            android:textSize="9.5sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:includeFontPadding="false" />
+
+        <TextView
+            android:id="@+id/tv_time_fajr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:text="04:30"
+            android:textColor="@color/notif_time_color"
+            android:textSize="10.5sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+
+    <!-- Sunrise (الشروق) Box -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="1"
+        android:layout_marginStart="1.5dp"
+        android:layout_marginEnd="1.5dp"
+        android:background="@drawable/bg_prayer_card"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_title_sunrise"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="الشروق"
+            android:textColor="@color/notif_title_color"
+            android:textSize="9.5sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:includeFontPadding="false" />
+
+        <TextView
+            android:id="@+id/tv_time_sunrise"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:text="05:52"
+            android:textColor="@color/notif_time_color"
+            android:textSize="10.5sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+
+    <!-- Dhuhr (الظهر) Box -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="1"
+        android:layout_marginStart="1.5dp"
+        android:layout_marginEnd="1.5dp"
+        android:background="@drawable/bg_prayer_card"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_title_dhuhr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="الظهر"
+            android:textColor="@color/notif_title_color"
+            android:textSize="9.5sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:includeFontPadding="false" />
+
+        <TextView
+            android:id="@+id/tv_time_dhuhr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:text="11:47"
+            android:textColor="@color/notif_time_color"
+            android:textSize="10.5sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+
+    <!-- Maghrib (المغرب) Box -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="1"
+        android:layout_marginStart="1.5dp"
+        android:layout_marginEnd="1.5dp"
+        android:background="@drawable/bg_prayer_card"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_title_maghrib"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="المغرب"
+            android:textColor="@color/notif_title_color"
+            android:textSize="9.5sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:includeFontPadding="false" />
+
+        <TextView
+            android:id="@+id/tv_time_maghrib"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:text="05:55"
+            android:textColor="@color/notif_time_color"
+            android:textSize="10.5sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+
+</LinearLayout>
