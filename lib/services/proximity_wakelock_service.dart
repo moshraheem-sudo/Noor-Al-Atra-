@@ -104,25 +104,24 @@ class ProximityWakeLockService {
     }
   }
 
-  /// Show custom Quran verse notification rendered with AyahMedallionSpan & StaticLayout
+  /// Cancel custom Quran notification
+  Future<void> cancelQuranNotification() async {
+    try {
+      await _wakelockChannel.invokeMethod('cancelQuranNotification');
+    } catch (e) {
+      debugPrint('Error canceling Quran notification: $e');
+    }
+  }
+
+  /// Show custom Quran verse notification (disabled)
   Future<bool> showCustomQuranNotification({
     required String surahName,
     required int ayahNum,
     required String text,
     required int surahId,
   }) async {
-    try {
-      final res = await _wakelockChannel.invokeMethod<bool>('showCustomQuranNotification', {
-        'surahName': surahName,
-        'ayahNum': ayahNum,
-        'text': text,
-        'surahId': surahId,
-      });
-      return res == true;
-    } catch (e) {
-      debugPrint('Error showing custom Quran notification: $e');
-      return false;
-    }
+    await cancelQuranNotification();
+    return false;
   }
 
   /// Check if the app is already whitelisted / exempt from battery optimization

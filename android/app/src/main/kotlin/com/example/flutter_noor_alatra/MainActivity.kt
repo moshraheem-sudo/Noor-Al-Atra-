@@ -71,6 +71,12 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        try {
+            val notifMgr = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notifMgr?.cancel(QURAN_NOTIF_ID)
+            notifMgr?.cancel(1002)
+        } catch (_: Exception) {}
+
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         proximitySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_PROXIMITY)
 
@@ -145,14 +151,21 @@ class MainActivity : FlutterActivity() {
                         result.error("INVALID_PATH", "filePath is null", null)
                     }
                 }
-                "showCustomQuranNotification" -> {
-                    val surahName = call.argument<String>("surahName") ?: "القرآن الكريم"
-                    val ayahNum = call.argument<Int>("ayahNum") ?: 1
-                    val text = call.argument<String>("text") ?: ""
-                    val surahId = call.argument<Int>("surahId") ?: 1
-
-                    showStaticQuranNotification(applicationContext, surahName, ayahNum, text, surahId)
+                "cancelQuranNotification" -> {
+                    try {
+                        val notifMgr = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                        notifMgr?.cancel(QURAN_NOTIF_ID)
+                        notifMgr?.cancel(1002)
+                    } catch (_: Exception) {}
                     result.success(true)
+                }
+                "showCustomQuranNotification" -> {
+                    try {
+                        val notifMgr = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                        notifMgr?.cancel(QURAN_NOTIF_ID)
+                        notifMgr?.cancel(1002)
+                    } catch (_: Exception) {}
+                    result.success(false)
                 }
                 "installApk" -> {
                     val apkFilePath = call.argument<String>("filePath")
@@ -497,115 +510,14 @@ class MainActivity : FlutterActivity() {
             surahId: Int
         ) {
             try {
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                notificationManager?.cancel(QURAN_NOTIF_ID)
+                notificationManager?.cancel(1002)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val channel = NotificationChannel(
-                        QURAN_CHANNEL_ID,
-                        "آيات قرآنية كريمة بالرسم العثماني",
-                        NotificationManager.IMPORTANCE_HIGH
-                    ).apply {
-                        description = "عرض آيات قرآنية بالرسم العثماني مع أرقام الآيات"
-                        enableLights(true)
-                        enableVibration(true)
-                        lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-                    }
-                    notificationManager.createNotificationChannel(channel)
+                    notificationManager?.deleteNotificationChannel(QURAN_CHANNEL_ID)
+                    notificationManager?.deleteNotificationChannel("quran_verses_channel_v4")
                 }
-
-                // Split verses if multi-verse
-                val parts = verseText.split(Regex("[•\\*]")).map { it.trim() }.filter { it.isNotEmpty() }
-                val calculatedEndAyah = startAyahNum + parts.size - 1
-
-                val formattedVerses = parts.mapIndexed { index, part ->
-                    val currentNum = startAyahNum + index
-                    val arabicNum = QuranNotificationRenderer.toArabicDigits(currentNum)
-                    "$part ﴿$arabicNum﴾"
-                }.joinToString(" ")
-
-                val formattedQuranText = "﴿ $formattedVerses ﴾"
-
-                val referenceText = if (calculatedEndAyah > startAyahNum) {
-                    "سورة $surahName، الآيات ${QuranNotificationRenderer.toArabicDigits(startAyahNum)} - ${QuranNotificationRenderer.toArabicDigits(calculatedEndAyah)}"
-                } else {
-                    "سورة $surahName، الآية ${QuranNotificationRenderer.toArabicDigits(startAyahNum)}"
-                }
-
-                val readActionLabel = if (calculatedEndAyah > startAyahNum) "📖 اقرأ الآيات" else "📖 اقرأ الآية"
-
-                // PendingIntent for main notification tap
-                val mainIntent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra("route", "quran")
-                    putExtra("surahId", surahId)
-                    putExtra("ayahNum", startAyahNum)
-                }
-                val mainPi = PendingIntent.getActivity(
-                    context,
-                    2001,
-                    mainIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-
-                // PendingIntent for Read Ayah button
-                val readIntent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra("route", "quran_reader")
-                    putExtra("surahId", surahId)
-                    putExtra("ayahNum", startAyahNum)
-                }
-                val readPi = PendingIntent.getActivity(
-                    context,
-                    2002,
-                    readIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-
-                // PendingIntent for Listen Ayah button
-                val listenIntent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra("route", "quran_audio")
-                    putExtra("surahId", surahId)
-                    putExtra("ayahNum", startAyahNum)
-                }
-                val listenPi = PendingIntent.getActivity(
-                    context,
-                    2003,
-                    listenIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-
-                val largeIconBitmap: Bitmap? = try {
-                    BitmapFactory.decodeResource(context.resources, R.drawable.app_icon)
-                } catch (_: Exception) {
-                    null
-                }
-
-                val fullNotificationText = "$formattedQuranText\n\n- $referenceText"
-
-                val notification = NotificationCompat.Builder(context, QURAN_CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_notification)
-                    .setLargeIcon(largeIconBitmap)
-                    .setContentTitle(referenceText)
-                    .setContentText("$formattedQuranText - $referenceText")
-                    .setSubText("تطبيق نور العترة")
-                    .setStyle(
-                        NotificationCompat.BigTextStyle()
-                            .bigText(fullNotificationText)
-                            .setBigContentTitle(referenceText)
-                            .setSummaryText("تطبيق نور العترة")
-                    )
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setContentIntent(mainPi)
-                    .addAction(R.drawable.ic_notification, "▶ استمع الآن", listenPi)
-                    .addAction(R.drawable.ic_notification, readActionLabel, readPi)
-                    .setAutoCancel(true)
-                    .build()
-
-                notificationManager.notify(QURAN_NOTIF_ID, notification)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            } catch (_: Exception) {}
         }
     }
 

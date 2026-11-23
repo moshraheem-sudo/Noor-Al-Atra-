@@ -244,16 +244,12 @@ class AppNotificationService {
             enableVibration: true,
           ),
         );
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'quran_verses_channel',
-            'آيات قرآنية كريمة بالرسم العثماني',
-            description: 'إرسال آيات قرآنية مباركة دورياً بالرسم العثماني التام',
-            importance: Importance.high,
-            playSound: true,
-            enableVibration: true,
-          ),
-        );
+        try {
+          await androidPlugin.deleteNotificationChannel(channelId: 'quran_verses_channel');
+          await androidPlugin.deleteNotificationChannel(channelId: 'quran_verses_channel_v3');
+          await androidPlugin.deleteNotificationChannel(channelId: 'quran_verses_channel_v4');
+        } catch (_) {}
+        cancelQuranNotification();
         await androidPlugin.createNotificationChannel(
           const AndroidNotificationChannel(
             'daily_deeds_channel',
@@ -377,107 +373,9 @@ class AppNotificationService {
     }
   }
 
-  /// 1. Send / Trigger a Quran Verse Notification in full Uthmani Script
+  /// 1. Quran verse notifications disabled per user request
   Future<void> showQuranVerseNotification({Map<String, dynamic>? verse}) async {
-    await init();
-    if (!_isInitialized) return;
-
-    final selected = verse ?? uthmaniQuranVerses[Random().nextInt(uthmaniQuranVerses.length)];
-    final surahName = selected['surahName'] as String;
-    final int startAyah = (selected['ayahNum'] is int)
-        ? selected['ayahNum'] as int
-        : int.tryParse(selected['ayahNum'].toString()) ?? 1;
-    final rawText = selected['text'] as String;
-    final surahId = (selected['surahId'] is int) ? selected['surahId'] as int : 1;
-
-    // Process multiple verses if separated by '•' or '*'
-    final List<String> parts = rawText
-        .split(RegExp(r'[•\*]'))
-        .map((p) => p.trim())
-        .where((p) => p.isNotEmpty)
-        .toList();
-
-    final int calculatedEndAyah = startAyah + parts.length - 1;
-
-    // Format Quranic text: each verse followed by bracketed Arabic numeral ﴿١﴾ or ۝١
-    final formattedVerses = parts.asMap().entries.map((entry) {
-      final currentNum = startAyah + entry.key;
-      final arabicNum = HijriDateService.toArabicDigits(currentNum);
-      return '${entry.value} ﴿$arabicNum﴾';
-    }).join(' ');
-
-    final formattedQuranText = '﴿ $formattedVerses ﴾';
-
-    final referenceText = calculatedEndAyah > startAyah
-        ? 'سورة $surahName، الآيات ${HijriDateService.toArabicDigits(startAyah)} - ${HijriDateService.toArabicDigits(calculatedEndAyah)}'
-        : 'سورة $surahName، الآية ${HijriDateService.toArabicDigits(startAyah)}';
-
-    final fullNotificationText = '$formattedQuranText\n\n- $referenceText';
-
-    // 1. Android Native Custom Notification if available
-    if (Platform.isAndroid) {
-      try {
-        final customSuccess = await ProximityWakeLockService().showCustomQuranNotification(
-          surahName: surahName,
-          ayahNum: startAyah,
-          text: rawText,
-          surahId: surahId,
-        );
-        if (customSuccess) return;
-      } catch (e) {
-        debugPrint('Custom Quran notification fallback: $e');
-      }
-    }
-
-    final readActionLabel = calculatedEndAyah > startAyah ? '📖 اقرأ الآيات' : '📖 اقرأ الآية';
-
-    final bigTextStyleInformation = BigTextStyleInformation(
-      fullNotificationText,
-      htmlFormatBigText: false,
-      contentTitle: referenceText,
-      htmlFormatContentTitle: false,
-      summaryText: 'تطبيق نور العترة',
-    );
-
-    final androidDetails = AndroidNotificationDetails(
-      'quran_verses_channel_v4',
-      'آيات قرآنية كريمة بالرسم العثماني',
-      channelDescription: 'تذكير مستمر بآيات من كتاب الله الحكيم بالرسم العثماني التام',
-      importance: Importance.max,
-      priority: Priority.max,
-      styleInformation: bigTextStyleInformation,
-      color: const Color(0xFF059669),
-      enableLights: true,
-      enableVibration: true,
-      icon: '@drawable/ic_notification',
-      largeIcon: const DrawableResourceAndroidBitmap('@drawable/app_icon'),
-      actions: [
-        const AndroidNotificationAction(
-          'listen_ayah',
-          '▶ استمع الآن',
-          showsUserInterface: true,
-        ),
-        AndroidNotificationAction(
-          'read_ayah',
-          readActionLabel,
-          showsUserInterface: true,
-        ),
-      ],
-    );
-
-    final notificationDetails = NotificationDetails(android: androidDetails);
-
-    try {
-      await _localNotifications.show(
-        id: 1002,
-        title: referenceText,
-        body: '$formattedQuranText - $referenceText',
-        notificationDetails: notificationDetails,
-        payload: 'quran_${surahId}_$startAyah',
-      );
-    } catch (e) {
-      debugPrint('Error showing Quran notification: $e');
-    }
+    await cancelQuranNotification();
   }
 
   /// 1.1 Trigger Post-Prayer Taqeebat Notification (5 minutes after Adhan)
@@ -1119,18 +1017,22 @@ class AppNotificationService {
     }
   }
 
-  /// Start or Stop Quran Verses periodic timer
+  /// Cancel Quran Verses notification and timer permanently
   void setQuranNotificationActive(bool active) {
     _quranTimer?.cancel();
     _quranTimer = null;
-    if (active) {
-      // Fire immediately once to show user
-      showQuranVerseNotification();
-      // Periodically fire every 30 minutes
-      _quranTimer = Timer.periodic(const Duration(minutes: 30), (_) {
-        showQuranVerseNotification();
-      });
-    }
+    cancelQuranNotification();
+  }
+
+  /// Permanently cancel any Quran verse notification from the notification tray
+  Future<void> cancelQuranNotification() async {
+    _quranTimer?.cancel();
+    _quranTimer = null;
+    try {
+      await _localNotifications.cancel(id: 1001);
+      await _localNotifications.cancel(id: 1002);
+      await ProximityWakeLockService().cancelQuranNotification();
+    } catch (_) {}
   }
 
   /// إرسال إشعار فوري عند توفر تحديث جديد للتطبيق

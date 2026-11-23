@@ -196,7 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'الآيات القرآنية، وتنبيهات المناسبات الدينية، ومواقيت الصلاة والأذان',
+                          'تنبيهات المناسبات الدينية، ومواقيت الصلاة والأذان',
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 11,
@@ -219,16 +219,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 1, indent: 16, endIndent: 16),
             const SizedBox(height: 8),
 
-            // Toggle 1: Quran Verses Notification
-            _buildSwitchTile(
-              title: 'إشعارات الآيات القرآنية',
-              subtitle: 'إرسال إشعارين في الساعة بآيات كريمة بالرسم العثماني (كل 30 دقيقة)',
-              value: settings.quranNotifications,
-              onChanged: (val) => settings.setQuranNotifications(val),
-              isDark: isDark,
-            ),
-
-            // Toggle 2: Daily Deeds & Ziyarat Notification
+            // Toggle 1: Daily Deeds & Ziyarat Notification
             _buildSwitchTile(
               title: 'إشعارات أدعية وزيارات الأيام',
               subtitle: 'تنبيه صباحي مبارك بأدعية وزيارة اليوم المأثورة عن أهل البيت عليهم السلام',

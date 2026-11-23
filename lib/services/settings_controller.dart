@@ -19,7 +19,7 @@ class SettingsController extends ChangeNotifier {
   SharedPreferences? _prefs;
 
   // 1. Notifications & Alerts
-  bool _quranNotifications = true;
+  bool _quranNotifications = false;
   bool _eventsNotifications = true;
   bool _dailyDeedsNotifications = true;
   bool _taqeebatNotifications = true;
@@ -88,7 +88,7 @@ class SettingsController extends ChangeNotifier {
   int _hijriManualOffset = 0;
 
   // Getters
-  bool get quranNotifications => _quranNotifications;
+  bool get quranNotifications => false;
   bool get eventsNotifications => _eventsNotifications;
   bool get dailyDeedsNotifications => _dailyDeedsNotifications;
   bool get taqeebatNotifications => _taqeebatNotifications;
@@ -129,7 +129,7 @@ class SettingsController extends ChangeNotifier {
 
   void _loadPreferences() {
     if (_prefs == null) return;
-    _quranNotifications = _prefs!.getBool('settings_quran_notif') ?? true;
+    _quranNotifications = false;
     _eventsNotifications = _prefs!.getBool('settings_events_notif') ?? true;
     _dailyDeedsNotifications = _prefs!.getBool('settings_daily_deeds_notif') ?? true;
     _taqeebatNotifications = _prefs!.getBool('settings_taqeebat_notif') ?? true;
@@ -182,17 +182,17 @@ class SettingsController extends ChangeNotifier {
     _hijriMode = _prefs!.getString('settings_hijri_mode') ?? 'online';
     _hijriManualOffset = _prefs!.getInt('settings_hijri_offset') ?? 0;
 
-    // Ensure Quran notifications cycle starts automatically according to saved preference
-    AppNotificationService().setQuranNotificationActive(_quranNotifications);
+    // Ensure Quran notifications are completely stopped and cancelled
+    AppNotificationService().setQuranNotificationActive(false);
 
     notifyListeners();
   }
 
   // Setters with persistence
   Future<void> setQuranNotifications(bool val) async {
-    _quranNotifications = val;
-    await _prefs?.setBool('settings_quran_notif', val);
-    AppNotificationService().setQuranNotificationActive(val);
+    _quranNotifications = false;
+    await _prefs?.setBool('settings_quran_notif', false);
+    AppNotificationService().setQuranNotificationActive(false);
     notifyListeners();
   }
 
