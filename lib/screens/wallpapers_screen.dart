@@ -25,14 +25,23 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
   String _selectedCategory = 'الكل';
   String _searchQuery = '';
 
-  final List<String> _categories = [
-    'الكل',
-    'العتبة العلوية',
-    'العتبة الحسينية',
-    'العتبة العباسية',
-    'العتبة العسكرية',
-    'أماكن مقدسة',
-  ];
+  List<String> get _categories {
+    final Set<String> cats = {'الكل'};
+    for (final item in _allWallpapers) {
+      if (item.category.trim().isNotEmpty) {
+        cats.add(item.category.trim());
+      }
+    }
+    if (cats.length == 1) {
+      cats.addAll([
+        'العتبة العلوية المقدسة',
+        'العتبة العسكرية المقدسة',
+        'العتبة الحسينية المقدسة',
+        'العتبة العباسية المقدسة',
+      ]);
+    }
+    return cats.toList();
+  }
 
   @override
   void initState() {
@@ -56,6 +65,19 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
         _isRefreshing = false;
         _applyFilters();
       });
+      if (forceRefresh) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم تحديث الخلفيات بنجاح (${items.length} خلفية)',
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: const Color(0xFF059669),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -63,7 +85,11 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
     List<WallpaperItem> result = _allWallpapers;
 
     if (_selectedCategory != 'الكل') {
-      result = result.where((item) => item.category == _selectedCategory).toList();
+      result = result.where((item) {
+        final cat = item.category.trim();
+        final sel = _selectedCategory.trim();
+        return cat == sel || cat.contains(sel) || sel.contains(cat);
+      }).toList();
     }
 
     if (_searchQuery.trim().isNotEmpty) {
@@ -71,6 +97,7 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
       result = result.where((item) {
         return item.title.toLowerCase().contains(q) ||
             item.category.toLowerCase().contains(q) ||
+            (item.shrine?.toLowerCase().contains(q) ?? false) ||
             item.tags.any((t) => t.toLowerCase().contains(q));
       }).toList();
     }
@@ -322,10 +349,11 @@ class _WallpaperCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             // Real Shrine Image via CachedNetworkImage with Badge placeholder
-            if (item.imageUrl.startsWith('http'))
+            if ((item.thumbnailUrl.isNotEmpty ? item.thumbnailUrl : item.imageUrl).startsWith('http'))
               CachedNetworkImage(
-                imageUrl: item.imageUrl,
+                imageUrl: item.thumbnailUrl.isNotEmpty ? item.thumbnailUrl : item.imageUrl,
                 fit: BoxFit.cover,
+                memCacheWidth: 400,
                 placeholder: (context, url) => Container(
                   color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
                   child: Center(
