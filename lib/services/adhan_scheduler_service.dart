@@ -48,6 +48,21 @@ class AdhanSchedulerService {
     _startSchedulerLoop();
     syncAdhanPlayingState();
     _checkAndTriggerPrayers();
+    // Immediate force update of sticky prayer notification
+    final savedCity = StorageService().getSavedCity() ?? CityLocation.defaultCity;
+    KafeelApiService.getPrayerTimes(savedCity, targetDate: DateTime.now()).then((times) {
+      if (times != null) {
+        _cachedPrayerTimes = times;
+        AppNotificationService().updateStickyPrayerTimesNotification(
+          fajr: times.fajr,
+          sunrise: times.sunrise,
+          dhuhr: times.dhuhr,
+          asr: times.asr,
+          maghrib: times.maghrib,
+          isha: times.isha,
+        );
+      }
+    });
   }
 
   /// Syncs active playing state between native Android AdhanAudioService and Dart
@@ -141,7 +156,7 @@ class AdhanSchedulerService {
     final settings = SettingsController();
 
     // Keep sticky notification active and updated every minute
-    if (settings.stickyPrayerNotification && (now.second == 0 || !_firedAlerts.contains('sticky_init_$todayKey'))) {
+    if (now.second == 0 || !_firedAlerts.contains('sticky_init_$todayKey')) {
       _firedAlerts.add('sticky_init_$todayKey');
       AppNotificationService().updateStickyPrayerTimesNotification(
         fajr: pTimes.fajr,

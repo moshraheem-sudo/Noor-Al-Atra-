@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'hijri_date_service.dart';
@@ -404,22 +405,23 @@ class AppNotificationService {
     }
 
     final arabicAyahNum = HijriDateService.toArabicDigits(ayahNum);
-    final title = 'سورة $surahName • آية $arabicAyahNum 📖';
+    final title = 'سورة $surahName، الآية $arabicAyahNum';
+    final fullReference = 'سورة $surahName، الآية $arabicAyahNum';
     // Authentic Quranic quotation marks and end-of-ayah rosette symbol with number enclosed
-    final body = '﴿ $text ﴾ ۝$arabicAyahNum';
+    final formattedQuranText = '﴿ $text ﴾ ۝$arabicAyahNum';
 
     final bigTextStyleInformation = BigTextStyleInformation(
-      body,
+      '$formattedQuranText\n\n- $fullReference',
       htmlFormatBigText: false,
-      contentTitle: title,
+      contentTitle: 'نفحات من القرآن الكريم 📖',
       htmlFormatContentTitle: false,
-      summaryText: 'سورة $surahName 📖',
+      summaryText: 'سورة $surahName، الآية $arabicAyahNum',
     );
 
     final androidDetails = AndroidNotificationDetails(
-      'quran_verses_channel',
-      'آيات قرآنية كريمة بالرسم العثماني',
-      channelDescription: 'إرسال آيات قرآنية مباركة بالرسم العثماني التام مع اسم السورة ورقم الآية',
+      'quran_verses_channel_v3',
+      'نفحات من القرآن الكريم',
+      channelDescription: 'تذكير مستمر بآيات من كتاب الله الحكيم',
       importance: Importance.max,
       priority: Priority.max,
       styleInformation: bigTextStyleInformation,
@@ -431,12 +433,12 @@ class AppNotificationService {
       actions: const [
         AndroidNotificationAction(
           'listen_ayah',
-          'استمع الآن ▶',
+          '▶ استمع الآن',
           showsUserInterface: true,
         ),
         AndroidNotificationAction(
           'read_ayah',
-          'اقرأ الآية 📖',
+          '📖 اقرأ الآية',
           showsUserInterface: true,
         ),
       ],
@@ -446,9 +448,9 @@ class AppNotificationService {
 
     try {
       await _localNotifications.show(
-        id: 1001,
-        title: title,
-        body: body,
+        id: 1002,
+        title: 'نفحات من القرآن الكريم 📖',
+        body: '$formattedQuranText - $fullReference',
         notificationDetails: notificationDetails,
         payload: 'quran_${selected['surahId']}_$ayahNum',
       );
@@ -637,21 +639,7 @@ class AppNotificationService {
     return time24;
   }
 
-  /// Helper to format time into clean 12-hour format without text suffix (HH:mm) matching screenshot cards
-  static String formatPrayerTimePure(String time24) {
-    final parts = time24.split(':');
-    if (parts.length >= 2) {
-      int h = int.tryParse(parts[0].trim()) ?? 0;
-      final m = parts[1].trim().padLeft(2, '0');
-      if (h > 12) h -= 12;
-      if (h == 0) h = 12;
-      final hStr = h.toString().padLeft(2, '0');
-      return '$hStr:$m';
-    }
-    return time24;
-  }
-
-  /// 3. Update Sticky / Ongoing Mobile Notification Bar for Prayer Times (Clean layout matching reference)
+  /// 3. Update Sticky / Ongoing Mobile Notification Bar for Prayer Times (Clean layout matching Prayer-Times app)
   Future<void> updateStickyPrayerTimesNotification({
     required String fajr,
     required String sunrise,
@@ -665,20 +653,30 @@ class AppNotificationService {
     await init();
     if (!_isInitialized) return;
 
-    final pureFajr = formatPrayerTimePure(fajr);
-    final pureSunrise = formatPrayerTimePure(sunrise);
-    final pureDhuhr = formatPrayerTimePure(dhuhr);
-    final pureMaghrib = formatPrayerTimePure(maghrib);
+    final formattedFajr = formatPrayerTime12h(fajr);
+    final formattedSunrise = formatPrayerTime12h(sunrise);
+    final formattedDhuhr = formatPrayerTime12h(dhuhr);
+    final formattedMaghrib = formatPrayerTime12h(maghrib);
 
-    // 1. Native Custom Decorated Layout matching user screenshot exactly
+    // Persist prayer times for background boot receiver & system restarts
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('sticky_fajr', formattedFajr);
+      await prefs.setString('sticky_sunrise', formattedSunrise);
+      await prefs.setString('sticky_dhuhr', formattedDhuhr);
+      await prefs.setString('sticky_maghrib', formattedMaghrib);
+      await prefs.setBool('sticky_active', true);
+    } catch (_) {}
+
+    // 1. Native Custom Decorated Layout matching Prayer-Times app exactly
     bool customSuccess = false;
     if (Platform.isAndroid) {
       try {
         customSuccess = await ProximityWakeLockService().updateCustomPrayerNotification(
-          fajr: pureFajr,
-          sunrise: pureSunrise,
-          dhuhr: pureDhuhr,
-          maghrib: pureMaghrib,
+          fajr: formattedFajr,
+          sunrise: formattedSunrise,
+          dhuhr: formattedDhuhr,
+          maghrib: formattedMaghrib,
         );
       } catch (e) {
         debugPrint('Error updating custom card prayer notification: $e');
@@ -688,7 +686,7 @@ class AppNotificationService {
     // 2. Fallback only if custom card notification is not supported or failed
     if (!customSuccess) {
       try {
-        final summary = 'الفجر: $pureFajr | الشروق: $pureSunrise | الظهر: $pureDhuhr | المغرب: $pureMaghrib';
+        final summary = 'الفجر: $formattedFajr | الشروق: $formattedSunrise | الظهر: $formattedDhuhr | المغرب: $formattedMaghrib';
         final subtitle = (nextPrayerName != null && nextPrayerCountdown != null)
             ? 'الصلاة القادمة: $nextPrayerName خلال $nextPrayerCountdown'
             : 'مواقيت الصلاة وفق مركز الكفيل';
@@ -700,9 +698,9 @@ class AppNotificationService {
         );
 
         final androidDetails = AndroidNotificationDetails(
-          'sticky_prayer_cards_v8',
-          'مواقيت الصلاة الدائمة',
-          channelDescription: 'عرض أوقات الصلاة في بطاقات أنيقة مثبتة في مركز الإشعارات',
+          'prayer_ongoing_times_bar_v1',
+          'شريط مواقيت الصلاة الدائم',
+          channelDescription: 'بطاقة دائمة في لوحة الإشعارات تعرض مواقيت الصلاة لليوم بدقة',
           importance: Importance.low,
           priority: Priority.low,
           ongoing: true,
@@ -719,7 +717,7 @@ class AppNotificationService {
 
         final notificationDetails = NotificationDetails(android: androidDetails);
         await _localNotifications.show(
-          id: 1003,
+          id: 10001,
           title: 'مواقيت الصلاة الشرعية 🕌',
           body: summary,
           notificationDetails: notificationDetails,

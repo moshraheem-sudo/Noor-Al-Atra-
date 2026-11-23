@@ -400,8 +400,10 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
-        const val PRAYER_NOTIF_ID = 1003
-        const val PRAYER_CHANNEL_ID = "sticky_prayer_cards_v8"
+        const val PRAYER_NOTIF_ID = 10001
+        const val PRAYER_CHANNEL_ID = "prayer_ongoing_times_bar_v1"
+        const val PRAYER_CHANNEL_NAME = "شريط مواقيت الصلاة الدائم"
+        const val PRAYER_CHANNEL_DESC = "بطاقة دائمة في لوحة الإشعارات تعرض مواقيت الصلاة لليوم بدقة"
 
         fun showStaticPrayerNotification(context: Context, fajr: String, sunrise: String, dhuhr: String, maghrib: String) {
             try {
@@ -419,69 +421,61 @@ class MainActivity : FlutterActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     val channel = NotificationChannel(
                         PRAYER_CHANNEL_ID,
-                        "مواقيت الصلاة الدائمة",
+                        PRAYER_CHANNEL_NAME,
                         NotificationManager.IMPORTANCE_LOW
                     ).apply {
-                        description = "عرض أوقات الصلاة في بطاقات أنيقة مثبتة في مركز الإشعارات"
+                        description = PRAYER_CHANNEL_DESC
                         setShowBadge(false)
                         enableLights(false)
                         enableVibration(false)
                         setSound(null, null)
+                        lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
                     }
                     notificationManager.createNotificationChannel(channel)
                 }
 
-                val remoteViews = RemoteViews(context.packageName, R.layout.notification_prayer_cards)
-                remoteViews.setTextViewText(R.id.tv_time_fajr, fajr)
-                remoteViews.setTextViewText(R.id.tv_time_sunrise, sunrise)
-                remoteViews.setTextViewText(R.id.tv_time_dhuhr, dhuhr)
-                remoteViews.setTextViewText(R.id.tv_time_maghrib, maghrib)
+                val remoteViews = RemoteViews(context.packageName, R.layout.notification_prayer_card).apply {
+                    setTextViewText(R.id.tv_fajr_title, "الفجر")
+                    setTextViewText(R.id.tv_fajr_time, fajr)
+
+                    setTextViewText(R.id.tv_sunrise_title, "الشروق")
+                    setTextViewText(R.id.tv_sunrise_time, sunrise)
+
+                    setTextViewText(R.id.tv_dhuhr_title, "الظهر")
+                    setTextViewText(R.id.tv_dhuhr_time, dhuhr)
+
+                    setTextViewText(R.id.tv_maghrib_title, "المغرب")
+                    setTextViewText(R.id.tv_maghrib_time, maghrib)
+                }
 
                 val intent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
                 val pendingIntent = PendingIntent.getActivity(
                     context,
-                    0,
+                    9999,
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
                 val summaryText = "الفجر: $fajr | الشروق: $sunrise | الظهر: $dhuhr | المغرب: $maghrib"
 
-                val largeIconBitmap: Bitmap? = try {
-                    BitmapFactory.decodeResource(context.resources, R.drawable.app_icon)
-                        ?: run {
-                            val drawable = context.packageManager.getApplicationIcon(context.packageName)
-                            val bmp = Bitmap.createBitmap(
-                                drawable.intrinsicWidth.coerceAtLeast(1),
-                                drawable.intrinsicHeight.coerceAtLeast(1),
-                                Bitmap.Config.ARGB_8888
-                            )
-                            val canvas = Canvas(bmp)
-                            drawable.setBounds(0, 0, canvas.width, canvas.height)
-                            drawable.draw(canvas)
-                            bmp
-                        }
-                } catch (e: Exception) {
-                    null
-                }
-
                 val notification = NotificationCompat.Builder(context, PRAYER_CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_notification)
-                    .setLargeIcon(largeIconBitmap)
                     .setContentTitle("مواقيت الصلاة")
                     .setContentText(summaryText)
                     .setCustomContentView(remoteViews)
                     .setCustomBigContentView(remoteViews)
+                    .setStyle(NotificationCompat.DecoratedCustomViewStyle())
                     .setContentIntent(pendingIntent)
                     .setOngoing(true)
                     .setAutoCancel(false)
+                    .setCategory(NotificationCompat.CATEGORY_STATUS)
                     .setOnlyAlertOnce(true)
                     .setShowWhen(false)
-                    .setCategory(NotificationCompat.CATEGORY_STATUS)
                     .setPriority(NotificationCompat.PRIORITY_LOW)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .setColor(0xFF14B8A6.toInt())
                     .build().apply {
                         flags = flags or android.app.Notification.FLAG_NO_CLEAR or android.app.Notification.FLAG_ONGOING_EVENT
                     }
@@ -580,15 +574,17 @@ class MainActivity : FlutterActivity() {
                 val notification = NotificationCompat.Builder(context, QURAN_CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_notification)
                     .setLargeIcon(largeIconBitmap)
-                    .setContentTitle("سورة $surahName • آية $arabicAyah 📖")
-                    .setContentText("﴿ $verseText ﴾")
-                    .setCustomContentView(remoteViews)
-                    .setCustomBigContentView(remoteViews)
-                    .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                    .setContentIntent(mainPi)
-                    .setAutoCancel(true)
+                    .setContentTitle("نفحات من القرآن الكريم 📖")
+                    .setContentText("﴿ $verseText ﴾ ۝$arabicAyah - سورة $surahName، الآية $arabicAyah")
+                    .setStyle(
+                        NotificationCompat.BigTextStyle()
+                            .bigText("﴿ $verseText ﴾ ۝$arabicAyah\n\n- سورة $surahName، الآية $arabicAyah")
+                    )
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .setContentIntent(mainPi)
+                    .addAction(R.drawable.ic_notification, "▶ استمع الآن", listenPi)
+                    .addAction(R.drawable.ic_notification, "📖 اقرأ الآية", readPi)
+                    .setAutoCancel(true)
                     .build()
 
                 notificationManager.notify(QURAN_NOTIF_ID, notification)
