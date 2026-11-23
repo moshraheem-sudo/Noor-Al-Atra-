@@ -247,7 +247,7 @@ class _WorshipScreenState extends State<WorshipScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => const WorshipCategoryDetailScreen(
-            title: 'الأدعية والزيارات المفضلة',
+            title: 'المفضلة',
             categoryKey: 'favorites',
           ),
         ),
@@ -423,7 +423,7 @@ class _WorshipScreenState extends State<WorshipScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const WorshipCategoryDetailScreen(
-                            title: 'الأدعية والزيارات المفضلة',
+                            title: 'المفضلة',
                             categoryKey: 'favorites',
                           ),
                         ),

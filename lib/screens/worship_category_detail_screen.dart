@@ -132,7 +132,7 @@ class _WorshipCategoryDetailScreenState extends State<WorshipCategoryDetailScree
                           fontWeight: FontWeight.w600,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'ابحث في ${widget.title}...',
+                          hintText: 'ابحث في ${widget.categoryKey == 'favorites' ? 'المفضلة' : widget.title}...',
                           hintStyle: TextStyle(
                             fontSize: 13,
                             color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
@@ -142,7 +142,7 @@ class _WorshipCategoryDetailScreenState extends State<WorshipCategoryDetailScree
                         ),
                       )
                     : Text(
-                        widget.title,
+                        widget.categoryKey == 'favorites' ? 'المفضلة' : widget.title,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -220,7 +220,7 @@ class _WorshipCategoryDetailScreenState extends State<WorshipCategoryDetailScree
                           context,
                           MaterialPageRoute(
                             builder: (_) => const WorshipCategoryDetailScreen(
-                              title: 'الأدعية والزيارات المفضلة',
+                              title: 'المفضلة',
                               categoryKey: 'favorites',
                             ),
                           ),

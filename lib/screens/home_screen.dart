@@ -396,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const WorshipCategoryDetailScreen(
-                          title: 'الأدعية والزيارات المفضلة',
+                          title: 'المفضلة',
                           categoryKey: 'favorites',
                         ),
                       ),

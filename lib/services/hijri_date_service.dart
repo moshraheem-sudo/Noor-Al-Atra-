@@ -384,23 +384,47 @@ class HijriDateService {
   }
 
   /// Converts a Hijri date (year, month, day) to Gregorian DateTime
+  /// using the verified repository anchor and online adjustment
   static DateTime hijriToGregorian(int hYear, int hMonth, int hDay) {
     if (hMonth == 9) {
       final ramadan1 = getRamadanStartDate(hYear);
       return ramadan1.add(Duration(days: hDay - 1));
     }
 
-    final double totalDays = (hYear - 1) * 354.367068 + (hMonth - 1) * 29.530589 + (hDay - 1);
-    final DateTime approxDate = DateTime(622, 7, 16).add(Duration(days: totalDays.round() - 2));
+    final targetAbsolute = _hijriToAbsoluteDays(hYear, hMonth, hDay);
+    final anchorAbsolute = _hijriToAbsoluteDays(_anchorHijriYear, _anchorHijriMonth, _anchorHijriDay);
+    final diffDays = targetAbsolute - anchorAbsolute - _onlineAdjustment;
 
-    for (int offset = -4; offset <= 4; offset++) {
-      final DateTime candidate = approxDate.add(Duration(days: offset));
-      final h = getHijriDate(candidate);
+    final candidate = DateTime(
+      _anchorGregorianDate.year,
+      _anchorGregorianDate.month,
+      _anchorGregorianDate.day,
+    ).add(Duration(days: diffDays));
+
+    // Verify round-trip match with getHijriDate
+    for (int offset = -3; offset <= 3; offset++) {
+      final testDt = candidate.add(Duration(days: offset));
+      final h = getHijriDate(testDt);
       if (h['year'] == hYear && h['month'] == hMonth && h['day'] == hDay) {
-        return candidate;
+        return testDt;
       }
     }
-    return approxDate;
+
+    return candidate;
+  }
+
+  static int _hijriToAbsoluteDays(int y, int m, int d) {
+    final cycles = (y - 1) ~/ 30;
+    final remYears = (y - 1) % 30;
+    int days = cycles * 10631;
+    for (int r = 1; r <= remYears; r++) {
+      days += isHijriLeapYear(r + cycles * 30) ? 355 : 354;
+    }
+    for (int mI = 1; mI < m; mI++) {
+      days += getDaysInHijriMonth(y, mI);
+    }
+    days += (d - 1);
+    return days;
   }
 
   /// Determines if a Hijri year is a leap year (355 days instead of 354)

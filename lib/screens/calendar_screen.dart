@@ -285,7 +285,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const WorshipCategoryDetailScreen(
-                            title: 'الأدعية والزيارات المفضلة',
+                            title: 'المفضلة',
                             categoryKey: 'favorites',
                           ),
                         ),

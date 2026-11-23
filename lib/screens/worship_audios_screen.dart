@@ -435,7 +435,7 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => const WorshipCategoryDetailScreen(
-                                    title: 'الأدعية والزيارات المفضلة',
+                                    title: 'المفضلة',
                                     categoryKey: 'favorites',
                                   ),
                                 ),
