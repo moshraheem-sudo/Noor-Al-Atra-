@@ -77,6 +77,33 @@ class MainActivity : FlutterActivity() {
                     cancelCustomPrayerNotification()
                     result.success(true)
                 }
+                "installApk" -> {
+                    val apkFilePath = call.argument<String>("filePath")
+                    if (apkFilePath != null) {
+                        val file = java.io.File(apkFilePath)
+                        if (file.exists()) {
+                            try {
+                                val apkUri = androidx.core.content.FileProvider.getUriForFile(
+                                    applicationContext,
+                                    "$packageName.fileprovider",
+                                    file
+                                )
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                }
+                                startActivity(intent)
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("INSTALL_ERROR", e.message, null)
+                            }
+                        } else {
+                            result.error("FILE_NOT_FOUND", "File not found: $apkFilePath", null)
+                        }
+                    } else {
+                        result.error("INVALID_PATH", "filePath is null", null)
+                    }
+                }
                 "isBatteryOptimizationIgnored" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager

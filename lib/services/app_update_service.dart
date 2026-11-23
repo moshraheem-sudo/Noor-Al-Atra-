@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'app_notification_service.dart';
 
 class AppUpdateService {
-  static const String currentVersion = '5.51.0';
+  static const String currentVersion = '5.52.0';
 
   // 1️⃣ مستودع التحديثات الرئيسي لتطبيق نور العترة
   static const String primaryRepoUrl = 'https://github.com/moshraheem-sudo/Noor-Al-Atra-';
@@ -112,7 +114,17 @@ class AppUpdateService {
       }
 
       if (_isNewerVersion(tagName, currentVersion) && context.mounted) {
-        _showUpdateDialog(context, tagName, body, apkDownloadUrl ?? htmlUrl);
+        // إرسال إشعار فوري إلى شريط الإشعارات بالنظام
+        AppNotificationService().showAppUpdateNotification(newVersion: tagName, changelog: body);
+
+        // بدء نافذة التنزيل التلقائي المباشر داخلياً بدون فتح متصفح خارجي
+        _showLiveApkDownloadModal(
+          context,
+          apkDownloadUrl ?? htmlUrl,
+          'تطبيق نور العترة v$tagName',
+          htmlUrl,
+          autoInstall: true,
+        );
       }
     }
   }
@@ -198,8 +210,10 @@ class AppUpdateService {
       }
 
       if (_isNewerVersion(tagName, currentVersion)) {
+        // إرسال إشعار فوري في النظام
+        AppNotificationService().showAppUpdateNotification(newVersion: tagName, changelog: body);
         if (context.mounted) {
-          _showUpdateDialog(context, tagName, body, apkDownloadUrl ?? htmlUrl);
+          _showUpdateDialog(context, tagName, body, apkDownloadUrl ?? htmlUrl, htmlUrl);
         }
       } else {
         if (context.mounted && showToastIfLatest) {
@@ -351,13 +365,29 @@ class AppUpdateService {
     }
   }
 
-  /// Live APK Download Modal with real-time percentage and Megabytes counter
+  static const MethodChannel _platformChannel = MethodChannel('com.example.flutter_noor_alatra/wakelock');
+
+  /// تثبيت ملف الـ APK المحمل مباشرة داخل نظام أندرويد بدون متصفح خارجي
+  static Future<bool> installDownloadedApk(String filePath) async {
+    try {
+      if (Platform.isAndroid) {
+        final res = await _platformChannel.invokeMethod('installApk', {'filePath': filePath});
+        return res == true;
+      }
+    } catch (e) {
+      debugPrint('Error triggering native APK install: $e');
+    }
+    return false;
+  }
+
+  /// نافذة التحميل الداخلي المباشر للـ APK مع نسبة التقدم وعداد الميغابايت وإمكانية الإلغاء والتثبيت التلقائي
   static void _showLiveApkDownloadModal(
     BuildContext context,
     String downloadUrl,
     String appName,
-    String fallbackUrl,
-  ) {
+    String fallbackUrl, {
+    bool autoInstall = false,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -417,6 +447,12 @@ class AppUpdateService {
                         isCompleted = true;
                         localApkPath = file.path;
                       });
+                      if (autoInstall) {
+                        // بدء التثبيت التلقائي الفوري دون الحاجة لتحويل المستخدم للخارج
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          installDownloadedApk(file.path);
+                        });
+                      }
                     } else {
                       throw Exception('حجم الملف المحمل غير مكتمل');
                     }
@@ -618,9 +654,12 @@ class AppUpdateService {
                       ),
                       onPressed: () async {
                         if (localApkPath != null) {
-                          final uri = Uri.parse(downloadUrl);
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          final success = await installDownloadedApk(localApkPath!);
+                          if (!success) {
+                            final uri = Uri.parse(downloadUrl);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
                           }
                         }
                       },
@@ -706,7 +745,13 @@ class AppUpdateService {
     );
   }
 
-  static void _showUpdateDialog(BuildContext context, String newVersion, String changelog, String downloadUrl) {
+  static void _showUpdateDialog(
+    BuildContext context,
+    String newVersion,
+    String changelog,
+    String downloadUrl,
+    String releasePageUrl,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -779,15 +824,19 @@ class AppUpdateService {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
-              final uri = Uri.parse(downloadUrl);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
+              // تنزيل وتثبيت داخلي فوري داخل التطبيق دون فتح المتصفح الخارجي
+              _showLiveApkDownloadModal(
+                context,
+                downloadUrl,
+                'تطبيق نور العترة v$newVersion',
+                releasePageUrl,
+                autoInstall: true,
+              );
             },
             icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text('تحديث الآن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+            label: const Text('تحميل وتحديث الآن', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
           ),
         ],
       ),

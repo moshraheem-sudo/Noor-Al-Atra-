@@ -1094,4 +1094,34 @@ class AppNotificationService {
       });
     }
   }
+
+  /// إرسال إشعار فوري عند توفر تحديث جديد للتطبيق
+  Future<void> showAppUpdateNotification({
+    required String newVersion,
+    required String changelog,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'app_updates_channel',
+      'تحديثات تطبيق نور العترة',
+      channelDescription: 'إشعارات توفر إصدارات وتحديثات جديدة للتطبيق',
+      importance: Importance.max,
+      priority: Priority.high,
+      color: Color(0xFF0F766E),
+      icon: '@drawable/ic_notification',
+      largeIcon: DrawableResourceAndroidBitmap('@drawable/app_icon'),
+      showWhen: true,
+    );
+    const notificationDetails = NotificationDetails(android: androidDetails);
+    try {
+      await _localNotifications.show(
+        id: 99999,
+        title: 'تحديث جديد متوفر: تطبيق نور العترة ($newVersion) ✨',
+        body: 'يتوفر إصدار جديد يتضمن تحسينات ومزايا جديدة. اضغط للترقية الفورية.',
+        notificationDetails: notificationDetails,
+        payload: 'app_update',
+      );
+    } catch (e) {
+      debugPrint('Error showing app update notification: $e');
+    }
+  }
 }
