@@ -12,6 +12,7 @@ import 'tasbeeh_screen.dart';
 import 'rakaat_counter_screen.dart';
 import 'qibla_compass_screen.dart';
 import 'ramadan_imsakiya_screen.dart';
+import 'wallpapers_screen.dart';
 
 class WorshipGridItem {
   final String title;
@@ -220,6 +221,13 @@ class _WorshipScreenState extends State<WorshipScreen> {
         title: 'صلوات أهل البيت',
         categoryKey: 'salawatsOnHujaj',
       ),
+    ),
+    // 17. الخلفيات الولائية الشريفة
+    WorshipGridItem(
+      title: 'خلفيات ولائية',
+      assetPath: 'assets/images/Glossy Gallery Photo Badge.png',
+      fallbackIcon: Icons.wallpaper_rounded,
+      screenBuilder: (_) => const WallpapersScreen(),
     ),
   ];
 

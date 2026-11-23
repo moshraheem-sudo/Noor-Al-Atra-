@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layoutDirection="rtl"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <!-- Top header row with surah name and title -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_quran_notif_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="سورة البقرة"
+            android:textColor="#059669"
+            android:textStyle="bold"
+            android:textSize="12.5sp" />
+
+        <TextView
+            android:id="@+id/tv_quran_notif_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="تذكير قرآني • نور العترة"
+            android:textColor="#64748B"
+            android:textSize="10.5sp" />
+    </LinearLayout>
+
+    <!-- Ayah Bitmap Render with Rosette & Centered Number -->
+    <ImageView
+        android:id="@+id/iv_quran_ayah_bitmap"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="4dp" />
+
+    <!-- Action Buttons Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="start">
+
+        <TextView
+            android:id="@+id/btn_read_ayah"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="اقرأ الآيات 📖"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:textColor="#059669"
+            android:paddingStart="8dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp" />
+
+        <TextView
+            android:id="@+id/btn_listen_ayah"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="استمع الآن ▶"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:textColor="#0284C7"
+            android:paddingStart="8dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp" />
+    </LinearLayout>
+</LinearLayout>

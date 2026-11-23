@@ -386,6 +386,23 @@ class AppNotificationService {
     final ayahNum = selected['ayahNum'];
     final text = selected['text'] as String;
 
+    final surahId = (selected['surahId'] is int) ? selected['surahId'] as int : 1;
+
+    // 1. Android Custom Bitmap Notification with AyahMedallionSpan & StaticLayout
+    if (Platform.isAndroid) {
+      try {
+        final customSuccess = await ProximityWakeLockService().showCustomQuranNotification(
+          surahName: surahName,
+          ayahNum: (ayahNum is int) ? ayahNum : int.tryParse(ayahNum.toString()) ?? 1,
+          text: text,
+          surahId: surahId,
+        );
+        if (customSuccess) return;
+      } catch (e) {
+        debugPrint('Custom Quran notification fallback: $e');
+      }
+    }
+
     final arabicAyahNum = HijriDateService.toArabicDigits(ayahNum);
     final title = 'سورة $surahName • آية $arabicAyahNum 📖';
     // Authentic Quranic quotation marks and end-of-ayah rosette symbol with number enclosed

@@ -87,6 +87,44 @@ class ProximityWakeLockService {
     }
   }
 
+  /// Set image as phone wallpaper (home, lock, or both)
+  Future<bool> setDeviceWallpaper({
+    required String filePath,
+    String target = 'both', // 'home', 'lock', 'both'
+  }) async {
+    try {
+      final res = await _wakelockChannel.invokeMethod<bool>('setDeviceWallpaper', {
+        'filePath': filePath,
+        'target': target,
+      });
+      return res == true;
+    } catch (e) {
+      debugPrint('Error setting device wallpaper: $e');
+      return false;
+    }
+  }
+
+  /// Show custom Quran verse notification rendered with AyahMedallionSpan & StaticLayout
+  Future<bool> showCustomQuranNotification({
+    required String surahName,
+    required int ayahNum,
+    required String text,
+    required int surahId,
+  }) async {
+    try {
+      final res = await _wakelockChannel.invokeMethod<bool>('showCustomQuranNotification', {
+        'surahName': surahName,
+        'ayahNum': ayahNum,
+        'text': text,
+        'surahId': surahId,
+      });
+      return res == true;
+    } catch (e) {
+      debugPrint('Error showing custom Quran notification: $e');
+      return false;
+    }
+  }
+
   /// Check if the app is already whitelisted / exempt from battery optimization
   Future<bool> isBatteryOptimizationIgnored() async {
     try {

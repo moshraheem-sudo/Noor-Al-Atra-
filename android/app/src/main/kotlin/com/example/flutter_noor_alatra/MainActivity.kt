@@ -20,6 +20,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.app.Activity
+import android.app.WallpaperManager
 import android.speech.RecognizerIntent
 import androidx.core.app.NotificationCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -110,6 +111,48 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         result.error("SPEECH_NOT_AVAILABLE", e.localizedMessage, null)
                     }
+                }
+                "setDeviceWallpaper" -> {
+                    val filePath = call.argument<String>("filePath")
+                    val target = call.argument<String>("target") ?: "both" // "home", "lock", "both"
+                    if (filePath != null) {
+                        val file = java.io.File(filePath)
+                        if (file.exists()) {
+                            try {
+                                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                                if (bitmap != null) {
+                                    val wm = WallpaperManager.getInstance(applicationContext)
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                        when (target) {
+                                            "home" -> wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
+                                            "lock" -> wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
+                                            else -> wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK)
+                                        }
+                                    } else {
+                                        wm.setBitmap(bitmap)
+                                    }
+                                    result.success(true)
+                                } else {
+                                    result.error("DECODE_ERROR", "Failed to decode image bitmap", null)
+                                }
+                            } catch (e: Exception) {
+                                result.error("WALLPAPER_ERROR", e.localizedMessage, null)
+                            }
+                        } else {
+                            result.error("FILE_NOT_FOUND", "File not found: $filePath", null)
+                        }
+                    } else {
+                        result.error("INVALID_PATH", "filePath is null", null)
+                    }
+                }
+                "showCustomQuranNotification" -> {
+                    val surahName = call.argument<String>("surahName") ?: "القرآن الكريم"
+                    val ayahNum = call.argument<Int>("ayahNum") ?: 1
+                    val text = call.argument<String>("text") ?: ""
+                    val surahId = call.argument<Int>("surahId") ?: 1
+
+                    showStaticQuranNotification(applicationContext, surahName, ayahNum, text, surahId)
+                    result.success(true)
                 }
                 "installApk" -> {
                     val apkFilePath = call.argument<String>("filePath")
@@ -444,6 +487,111 @@ class MainActivity : FlutterActivity() {
                     }
 
                 notificationManager.notify(PRAYER_NOTIF_ID, notification)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        const val QURAN_NOTIF_ID = 1001
+        const val QURAN_CHANNEL_ID = "quran_verses_channel_v3"
+
+        fun showStaticQuranNotification(
+            context: Context,
+            surahName: String,
+            ayahNum: Int,
+            verseText: String,
+            surahId: Int
+        ) {
+            try {
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val channel = NotificationChannel(
+                        QURAN_CHANNEL_ID,
+                        "آيات قرآنية كريمة بالرسم العثماني",
+                        NotificationManager.IMPORTANCE_HIGH
+                    ).apply {
+                        description = "عرض آيات قرآنية مزخرفة بالرسم العثماني مع علامة نهاية الآية الأصلية"
+                        enableLights(true)
+                        enableVibration(true)
+                    }
+                    notificationManager.createNotificationChannel(channel)
+                }
+
+                val arabicAyah = QuranNotificationRenderer.toArabicDigits(ayahNum)
+                val bitmap = QuranNotificationRenderer.renderAyahBitmap(context, verseText, ayahNum, 960)
+
+                val remoteViews = RemoteViews(context.packageName, R.layout.notification_quran_verse)
+                remoteViews.setTextViewText(R.id.tv_quran_notif_title, "سورة $surahName • آية $arabicAyah")
+                remoteViews.setTextViewText(R.id.tv_quran_notif_subtitle, "نور العترة • تذكير قرآني")
+                remoteViews.setImageViewBitmap(R.id.iv_quran_ayah_bitmap, bitmap)
+
+                // PendingIntent for main notification tap
+                val mainIntent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("route", "quran")
+                    putExtra("surahId", surahId)
+                    putExtra("ayahNum", ayahNum)
+                }
+                val mainPi = PendingIntent.getActivity(
+                    context,
+                    2001,
+                    mainIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                // PendingIntent for Read Ayah button
+                val readIntent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("route", "quran_reader")
+                    putExtra("surahId", surahId)
+                    putExtra("ayahNum", ayahNum)
+                }
+                val readPi = PendingIntent.getActivity(
+                    context,
+                    2002,
+                    readIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                // PendingIntent for Listen Ayah button
+                val listenIntent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("route", "quran_audio")
+                    putExtra("surahId", surahId)
+                    putExtra("ayahNum", ayahNum)
+                }
+                val listenPi = PendingIntent.getActivity(
+                    context,
+                    2003,
+                    listenIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                remoteViews.setOnClickPendingIntent(R.id.btn_read_ayah, readPi)
+                remoteViews.setOnClickPendingIntent(R.id.btn_listen_ayah, listenPi)
+
+                val largeIconBitmap: Bitmap? = try {
+                    BitmapFactory.decodeResource(context.resources, R.drawable.app_icon)
+                } catch (_: Exception) {
+                    null
+                }
+
+                val notification = NotificationCompat.Builder(context, QURAN_CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setLargeIcon(largeIconBitmap)
+                    .setContentTitle("سورة $surahName • آية $arabicAyah 📖")
+                    .setContentText("﴿ $verseText ﴾")
+                    .setCustomContentView(remoteViews)
+                    .setCustomBigContentView(remoteViews)
+                    .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                    .setContentIntent(mainPi)
+                    .setAutoCancel(true)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .build()
+
+                notificationManager.notify(QURAN_NOTIF_ID, notification)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
