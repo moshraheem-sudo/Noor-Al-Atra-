@@ -384,18 +384,43 @@ class AppNotificationService {
 
     final selected = verse ?? uthmaniQuranVerses[Random().nextInt(uthmaniQuranVerses.length)];
     final surahName = selected['surahName'] as String;
-    final ayahNum = selected['ayahNum'];
-    final text = selected['text'] as String;
-
+    final int startAyah = (selected['ayahNum'] is int)
+        ? selected['ayahNum'] as int
+        : int.tryParse(selected['ayahNum'].toString()) ?? 1;
+    final rawText = selected['text'] as String;
     final surahId = (selected['surahId'] is int) ? selected['surahId'] as int : 1;
 
-    // 1. Android Custom Bitmap Notification with AyahMedallionSpan & StaticLayout
+    // Process multiple verses if separated by '•' or '*'
+    final List<String> parts = rawText
+        .split(RegExp(r'[•\*]'))
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+
+    final int calculatedEndAyah = startAyah + parts.length - 1;
+
+    // Format Quranic text: each verse followed by bracketed Arabic numeral ﴿١﴾ or ۝١
+    final formattedVerses = parts.asMap().entries.map((entry) {
+      final currentNum = startAyah + entry.key;
+      final arabicNum = HijriDateService.toArabicDigits(currentNum);
+      return '${entry.value} ﴿$arabicNum﴾';
+    }).join(' ');
+
+    final formattedQuranText = '﴿ $formattedVerses ﴾';
+
+    final referenceText = calculatedEndAyah > startAyah
+        ? 'سورة $surahName، الآيات ${HijriDateService.toArabicDigits(startAyah)} - ${HijriDateService.toArabicDigits(calculatedEndAyah)}'
+        : 'سورة $surahName، الآية ${HijriDateService.toArabicDigits(startAyah)}';
+
+    final fullNotificationText = '$formattedQuranText\n\n- $referenceText';
+
+    // 1. Android Native Custom Notification if available
     if (Platform.isAndroid) {
       try {
         final customSuccess = await ProximityWakeLockService().showCustomQuranNotification(
           surahName: surahName,
-          ayahNum: (ayahNum is int) ? ayahNum : int.tryParse(ayahNum.toString()) ?? 1,
-          text: text,
+          ayahNum: startAyah,
+          text: rawText,
           surahId: surahId,
         );
         if (customSuccess) return;
@@ -404,24 +429,20 @@ class AppNotificationService {
       }
     }
 
-    final arabicAyahNum = HijriDateService.toArabicDigits(ayahNum);
-    final title = 'سورة $surahName، الآية $arabicAyahNum';
-    final fullReference = 'سورة $surahName، الآية $arabicAyahNum';
-    // Authentic Quranic quotation marks and end-of-ayah rosette symbol with number enclosed
-    final formattedQuranText = '﴿ $text ﴾ ۝$arabicAyahNum';
+    final readActionLabel = calculatedEndAyah > startAyah ? '📖 اقرأ الآيات' : '📖 اقرأ الآية';
 
     final bigTextStyleInformation = BigTextStyleInformation(
-      '$formattedQuranText\n\n- $fullReference',
+      fullNotificationText,
       htmlFormatBigText: false,
-      contentTitle: 'نفحات من القرآن الكريم 📖',
+      contentTitle: referenceText,
       htmlFormatContentTitle: false,
-      summaryText: 'سورة $surahName، الآية $arabicAyahNum',
+      summaryText: 'تطبيق نور العترة',
     );
 
     final androidDetails = AndroidNotificationDetails(
-      'quran_verses_channel_v3',
-      'نفحات من القرآن الكريم',
-      channelDescription: 'تذكير مستمر بآيات من كتاب الله الحكيم',
+      'quran_verses_channel_v4',
+      'آيات قرآنية كريمة بالرسم العثماني',
+      channelDescription: 'تذكير مستمر بآيات من كتاب الله الحكيم بالرسم العثماني التام',
       importance: Importance.max,
       priority: Priority.max,
       styleInformation: bigTextStyleInformation,
@@ -430,15 +451,15 @@ class AppNotificationService {
       enableVibration: true,
       icon: '@drawable/ic_notification',
       largeIcon: const DrawableResourceAndroidBitmap('@drawable/app_icon'),
-      actions: const [
-        AndroidNotificationAction(
+      actions: [
+        const AndroidNotificationAction(
           'listen_ayah',
           '▶ استمع الآن',
           showsUserInterface: true,
         ),
         AndroidNotificationAction(
           'read_ayah',
-          '📖 اقرأ الآية',
+          readActionLabel,
           showsUserInterface: true,
         ),
       ],
@@ -449,10 +470,10 @@ class AppNotificationService {
     try {
       await _localNotifications.show(
         id: 1002,
-        title: 'نفحات من القرآن الكريم 📖',
-        body: '$formattedQuranText - $fullReference',
+        title: referenceText,
+        body: '$formattedQuranText - $referenceText',
         notificationDetails: notificationDetails,
-        payload: 'quran_${selected['surahId']}_$ayahNum',
+        payload: 'quran_${surahId}_$startAyah',
       );
     } catch (e) {
       debugPrint('Error showing Quran notification: $e');

@@ -492,7 +492,7 @@ class MainActivity : FlutterActivity() {
         fun showStaticQuranNotification(
             context: Context,
             surahName: String,
-            ayahNum: Int,
+            startAyahNum: Int,
             verseText: String,
             surahId: Int
         ) {
@@ -505,27 +505,40 @@ class MainActivity : FlutterActivity() {
                         "آيات قرآنية كريمة بالرسم العثماني",
                         NotificationManager.IMPORTANCE_HIGH
                     ).apply {
-                        description = "عرض آيات قرآنية مزخرفة بالرسم العثماني مع علامة نهاية الآية الأصلية"
+                        description = "عرض آيات قرآنية بالرسم العثماني مع أرقام الآيات"
                         enableLights(true)
                         enableVibration(true)
+                        lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
                     }
                     notificationManager.createNotificationChannel(channel)
                 }
 
-                val arabicAyah = QuranNotificationRenderer.toArabicDigits(ayahNum)
-                val bitmap = QuranNotificationRenderer.renderAyahBitmap(context, verseText, ayahNum, 680)
+                // Split verses if multi-verse
+                val parts = verseText.split(Regex("[•\\*]")).map { it.trim() }.filter { it.isNotEmpty() }
+                val calculatedEndAyah = startAyahNum + parts.size - 1
 
-                val remoteViews = RemoteViews(context.packageName, R.layout.notification_quran_verse)
-                remoteViews.setTextViewText(R.id.tv_quran_notif_title, "سورة $surahName • آية $arabicAyah")
-                remoteViews.setTextViewText(R.id.tv_quran_notif_subtitle, "نور العترة • تذكير قرآني")
-                remoteViews.setImageViewBitmap(R.id.iv_quran_ayah_bitmap, bitmap)
+                val formattedVerses = parts.mapIndexed { index, part ->
+                    val currentNum = startAyahNum + index
+                    val arabicNum = QuranNotificationRenderer.toArabicDigits(currentNum)
+                    "$part ﴿$arabicNum﴾"
+                }.joinToString(" ")
+
+                val formattedQuranText = "﴿ $formattedVerses ﴾"
+
+                val referenceText = if (calculatedEndAyah > startAyahNum) {
+                    "سورة $surahName، الآيات ${QuranNotificationRenderer.toArabicDigits(startAyahNum)} - ${QuranNotificationRenderer.toArabicDigits(calculatedEndAyah)}"
+                } else {
+                    "سورة $surahName، الآية ${QuranNotificationRenderer.toArabicDigits(startAyahNum)}"
+                }
+
+                val readActionLabel = if (calculatedEndAyah > startAyahNum) "📖 اقرأ الآيات" else "📖 اقرأ الآية"
 
                 // PendingIntent for main notification tap
                 val mainIntent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     putExtra("route", "quran")
                     putExtra("surahId", surahId)
-                    putExtra("ayahNum", ayahNum)
+                    putExtra("ayahNum", startAyahNum)
                 }
                 val mainPi = PendingIntent.getActivity(
                     context,
@@ -539,7 +552,7 @@ class MainActivity : FlutterActivity() {
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     putExtra("route", "quran_reader")
                     putExtra("surahId", surahId)
-                    putExtra("ayahNum", ayahNum)
+                    putExtra("ayahNum", startAyahNum)
                 }
                 val readPi = PendingIntent.getActivity(
                     context,
@@ -553,7 +566,7 @@ class MainActivity : FlutterActivity() {
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     putExtra("route", "quran_audio")
                     putExtra("surahId", surahId)
-                    putExtra("ayahNum", ayahNum)
+                    putExtra("ayahNum", startAyahNum)
                 }
                 val listenPi = PendingIntent.getActivity(
                     context,
@@ -562,28 +575,30 @@ class MainActivity : FlutterActivity() {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
-                remoteViews.setOnClickPendingIntent(R.id.btn_read_ayah, readPi)
-                remoteViews.setOnClickPendingIntent(R.id.btn_listen_ayah, listenPi)
-
                 val largeIconBitmap: Bitmap? = try {
                     BitmapFactory.decodeResource(context.resources, R.drawable.app_icon)
                 } catch (_: Exception) {
                     null
                 }
 
+                val fullNotificationText = "$formattedQuranText\n\n- $referenceText"
+
                 val notification = NotificationCompat.Builder(context, QURAN_CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_notification)
                     .setLargeIcon(largeIconBitmap)
-                    .setContentTitle("نفحات من القرآن الكريم 📖")
-                    .setContentText("﴿ $verseText ﴾ ۝$arabicAyah - سورة $surahName، الآية $arabicAyah")
+                    .setContentTitle(referenceText)
+                    .setContentText("$formattedQuranText - $referenceText")
+                    .setSubText("تطبيق نور العترة")
                     .setStyle(
                         NotificationCompat.BigTextStyle()
-                            .bigText("﴿ $verseText ﴾ ۝$arabicAyah\n\n- سورة $surahName، الآية $arabicAyah")
+                            .bigText(fullNotificationText)
+                            .setBigContentTitle(referenceText)
+                            .setSummaryText("تطبيق نور العترة")
                     )
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setContentIntent(mainPi)
                     .addAction(R.drawable.ic_notification, "▶ استمع الآن", listenPi)
-                    .addAction(R.drawable.ic_notification, "📖 اقرأ الآية", readPi)
+                    .addAction(R.drawable.ic_notification, readActionLabel, readPi)
                     .setAutoCancel(true)
                     .build()
 
