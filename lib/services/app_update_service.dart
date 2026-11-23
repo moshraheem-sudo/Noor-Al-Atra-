@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppUpdateService {
-  static const String currentVersion = '5.50.0';
+  static const String currentVersion = '5.51.0';
 
   // 1️⃣ مستودع التحديثات الرئيسي لتطبيق نور العترة
   static const String primaryRepoUrl = 'https://github.com/moshraheem-sudo/Noor-Al-Atra-';
@@ -24,6 +24,39 @@ class AppUpdateService {
   static const String prayerTimesRepoUrl = 'https://github.com/moshraheem-sudo/Prayer-Times';
   static const String prayerTimesApiUrl = 'https://api.github.com/repos/moshraheem-sudo/Prayer-Times/releases/latest';
   static const String prayerTimesRawGradleUrl = 'https://raw.githubusercontent.com/moshraheem-sudo/Prayer-Times/main/app/build.gradle.kts';
+
+  // 5️⃣ الإصدارات المتوفرة للتطبيقات الشقيقة (محدثة تلقائياً من GitHub)
+  static String quranAudioVersion = 'v3.40.0';
+  static String prayerTimesVersion = 'v1.70.0';
+
+  /// جلب أحدث أرقام الإصدارات لتطبيقي صوت القرآن وصلاتي في الخلفية
+  static Future<void> fetchSisterAppsVersions() async {
+    try {
+      final res1 = await http.get(Uri.parse(quranAudioApiUrl), headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      }).timeout(const Duration(seconds: 5));
+      if (res1.statusCode == 200) {
+        final d = json.decode(res1.body);
+        final tag = (d['tag_name'] ?? '').toString().trim();
+        if (tag.isNotEmpty) {
+          quranAudioVersion = tag.startsWith('v') ? tag : 'v$tag';
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final res2 = await http.get(Uri.parse(prayerTimesApiUrl), headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      }).timeout(const Duration(seconds: 5));
+      if (res2.statusCode == 200) {
+        final d = json.decode(res2.body);
+        final tag = (d['tag_name'] ?? '').toString().trim();
+        if (tag.isNotEmpty) {
+          prayerTimesVersion = tag.startsWith('v') ? tag : 'v$tag';
+        }
+      }
+    } catch (_) {}
+  }
 
   /// فحص صامت للتحديثات في خلفية التطبيق عند الإقلاع بدون إزعاج المستخدم
   /// في حال توفر إصدار جديد يتم إظهار نافذة التحديث المباشر للمستخدم تلقائياً
@@ -217,6 +250,10 @@ class AppUpdateService {
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         releasePageUrl = data['html_url'] ?? quranAudioRepoUrl;
+        final tag = (data['tag_name'] ?? '').toString().trim();
+        if (tag.isNotEmpty) {
+          quranAudioVersion = tag.startsWith('v') ? tag : 'v$tag';
+        }
         if (data['assets'] is List) {
           for (var a in data['assets']) {
             if ((a['name'] ?? '').toString().toLowerCase().endsWith('.apk')) {
@@ -239,6 +276,74 @@ class AppUpdateService {
       _showLiveApkDownloadModal(context, directApkUrl, 'تطبيق صوت القرآن الكريم', releasePageUrl);
     } else {
       // Fallback: Open GitHub Release page directly
+      final uri = Uri.parse(releasePageUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+  }
+
+  /// تنزيل وتثبيت تطبيق صلاتي (مواقيت الصلاة والأذان)
+  static Future<void> checkPrayerTimesRelease(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+        child: Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(strokeWidth: 3, color: Color(0xFF1B3A57)),
+                SizedBox(width: 16),
+                Text(
+                  'جاري البحث عن أحدث إصدار لتطبيق صلاتي...',
+                  style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    String? directApkUrl;
+    String releasePageUrl = prayerTimesRepoUrl;
+
+    try {
+      final res = await http.get(Uri.parse(prayerTimesApiUrl), headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      }).timeout(const Duration(seconds: 7));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        releasePageUrl = data['html_url'] ?? prayerTimesRepoUrl;
+        final tag = (data['tag_name'] ?? '').toString().trim();
+        if (tag.isNotEmpty) {
+          prayerTimesVersion = tag.startsWith('v') ? tag : 'v$tag';
+        }
+        if (data['assets'] is List) {
+          for (var a in data['assets']) {
+            if ((a['name'] ?? '').toString().toLowerCase().endsWith('.apk')) {
+              directApkUrl = a['browser_download_url'];
+              break;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    if (context.mounted && Navigator.canPop(context)) {
+      Navigator.pop(context); // Dismiss loading search
+    }
+
+    if (!context.mounted) return;
+
+    if (directApkUrl != null && directApkUrl.isNotEmpty) {
+      _showLiveApkDownloadModal(context, directApkUrl, 'تطبيق صلاتي (مواقيت الصلاة والأذان)', releasePageUrl);
+    } else {
       final uri = Uri.parse(releasePageUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -274,7 +379,9 @@ class AppUpdateService {
               Future.microtask(() async {
                 try {
                   final tempDir = await getTemporaryDirectory();
-                  final file = File('${tempDir.path}/sawt_al_quran.apk');
+                  final rawName = downloadUrl.split('/').last.split('?').first;
+                  final fileName = rawName.endsWith('.apk') ? rawName : 'downloaded_app.apk';
+                  final file = File('${tempDir.path}/$fileName');
                   if (await file.exists()) {
                     await file.delete();
                   }

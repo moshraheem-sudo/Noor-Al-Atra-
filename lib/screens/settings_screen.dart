@@ -18,6 +18,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsExpanded = true;
   bool _quranAudioExpanded = false;
+  bool _prayerTimesExpanded = false;
   bool _aboutDevsExpanded = false;
   bool _isSyncingHijri = false;
   bool _isSyncingEvents = false;
@@ -34,6 +35,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _hijriDayCtrl = TextEditingController(text: '${currentH['day']}');
     _hijriMonthCtrl = TextEditingController(text: '${currentH['month']}');
     _hijriYearCtrl = TextEditingController(text: '${currentH['year']}');
+
+    AppUpdateService.fetchSisterAppsVersions().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -105,11 +110,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _buildQuranAudioDownloadSection(context, isDark),
                         const SizedBox(height: 16),
 
-                        // 8. About Developers & Supporters Section
+                        // 8. Download Prayer Times (Salaty) App Section
+                        _buildPrayerTimesDownloadSection(context, isDark),
+                        const SizedBox(height: 16),
+
+                        // 9. About Developers & Supporters Section
                         _buildAboutDevelopersSection(context, isDark),
                         const SizedBox(height: 16),
 
-                        // 9. App Info & Copyright Card
+                        // 10. App Info & Copyright Card
                         _buildAppInfoCard(context, isDark),
                         const SizedBox(height: 24),
                       ],
@@ -1194,11 +1203,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         subtitle: Text(
-          'تحميل مباشر وتثبيت الحزمة بأحدث إصدار',
+          'الإصدار المتوفر: ${AppUpdateService.quranAudioVersion} • تحميل مباشر وتثبيت الحزمة',
           style: TextStyle(
             fontFamily: 'Cairo',
             fontSize: 11,
-            color: isDark ? Colors.white60 : const Color(0xFF7A8B99),
+            fontWeight: FontWeight.w600,
+            color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF0F766E),
           ),
         ),
         children: [
@@ -1212,10 +1222,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text(
                   'يتيح لك التطبيق الصوتي الاستماع لتلاوات القرآن الكريم الكاملة بصوت كبار القراء بدقة صوتية عالية وبدون انقطاع مع إمكانية التحميل للعمل دون إنترنت.',
                   style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 12,
-                    height: 1.6,
-                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                     fontFamily: 'Cairo',
+                     fontSize: 12,
+                     height: 1.6,
+                     color: isDark ? Colors.white70 : const Color(0xFF475569),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1230,9 +1240,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     onPressed: () => AppUpdateService.checkQuranAudioRelease(context),
                     icon: const Icon(Icons.download_for_offline_rounded, size: 18),
-                    label: const Text(
-                      'تحميل حزمة الصوتيات (APK)',
-                      style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12),
+                    label: Text(
+                      'تحميل صوت القرآن ${AppUpdateService.quranAudioVersion} (APK)',
+                      style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 9. Section 8: Download Prayer Times (Salaty) App ---
+  Widget _buildPrayerTimesDownloadSection(BuildContext context, bool isDark) {
+    return _buildCardWrapper(
+      isDark: isDark,
+      child: ExpansionTile(
+        initiallyExpanded: _prayerTimesExpanded,
+        onExpansionChanged: (val) => setState(() => _prayerTimesExpanded = val),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E3A5F) : const Color(0xFFD6EEFA),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.access_time_filled_rounded,
+            color: isDark ? const Color(0xFF90CAF9) : const Color(0xFF1B3A57),
+            size: 22,
+          ),
+        ),
+        title: Text(
+          'تنزيل تطبيق صلاتي (مواقيت الصلاة والأذان)',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: isDark ? Colors.white : const Color(0xFF1B3A57),
+          ),
+        ),
+        subtitle: Text(
+          'الإصدار المتوفر: ${AppUpdateService.prayerTimesVersion} • حساب فقهي دقيق وأذان تلقائي',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1B3A57),
+          ),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(),
+                const SizedBox(height: 6),
+                Text(
+                  'تطبيق صلاتي لحساب مواقيت الصلاة الشرعية اليومية والأذان التلقائي والقبلة الدقيقة وفق منهج مدرسة أهل البيت (عليهم السلام) مع تنبيهات دخول الوقت بدقة بالغة.',
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 12,
+                    height: 1.6,
+                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B3A57),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onPressed: () => AppUpdateService.checkPrayerTimesRelease(context),
+                    icon: const Icon(Icons.download_for_offline_rounded, size: 18),
+                    label: Text(
+                      'تحميل تطبيق صلاتي ${AppUpdateService.prayerTimesVersion} (APK)',
+                      style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 12),
                     ),
                   ),
                 ),

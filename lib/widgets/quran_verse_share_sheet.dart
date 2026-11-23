@@ -281,6 +281,7 @@ class QuranVerseShareSheet extends StatefulWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => QuranVerseShareSheet(
         surahName: surahName,
@@ -482,44 +483,50 @@ class _QuranVerseShareSheetState extends State<QuranVerseShareSheet> {
                 ),
                 const SizedBox(height: 10),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // زر الإغلاق (X)
                     IconButton(
                       icon: Icon(Icons.close, color: isDark ? Colors.white70 : const Color(0xFF64748B), size: 22),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                       onPressed: () => Navigator.pop(context),
                     ),
 
-                    // عنوان النافذة
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'شارك الآية كصورة',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 16.5,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF0284C7),
-                          ),
+                    // عنوان النافذة متموضع في المنتصف تماماً
+                    Expanded(
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.image_outlined,
+                                color: Color(0xFF0284C7),
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'شارك الآية كصورة',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF0284C7),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0284C7).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.image_outlined,
-                            color: Color(0xFF0284C7),
-                            size: 18,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
+
+                    // موازن المساحة لزر الإغلاق لضمان توسيط العنوان بدقة
+                    const SizedBox(width: 36),
                   ],
                 ),
               ],
@@ -540,7 +547,8 @@ class _QuranVerseShareSheetState extends State<QuranVerseShareSheet> {
                     height: 40,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      reverse: true,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       itemCount: VerseCardTheme.allThemes.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemBuilder: (ctx, idx) {
@@ -617,7 +625,8 @@ class _QuranVerseShareSheetState extends State<QuranVerseShareSheet> {
                     height: 40,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      reverse: true,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       itemCount: CardAspectRatioOption.allOptions.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemBuilder: (ctx, idx) {

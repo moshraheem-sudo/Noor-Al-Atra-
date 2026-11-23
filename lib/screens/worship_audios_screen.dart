@@ -349,7 +349,7 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                           onPressed: () => Navigator.pop(context),
                         ),
                         title: Text(
-                          'صوتيات • ${_getActiveTabName()}',
+                          'صوتيات',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

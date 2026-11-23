@@ -1093,18 +1093,30 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: _isContinuousReciting
-                              ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
-                              : [
-                                  isDark ? const Color(0xFF16202C) : const Color(0xFFFDFBF7),
-                                  isDark ? const Color(0xFF1E2E40) : const Color(0xFFF8F4E8),
-                                ],
+                          colors: isDark
+                              ? (_isContinuousReciting
+                                  ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                                  : [const Color(0xFF16202C), const Color(0xFF1E2E40)])
+                              : (_isContinuousReciting
+                                  ? [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)]
+                                  : [const Color(0xFFFDFBF7), const Color(0xFFF8F4E8)]),
                         ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
-                          width: 1.2,
+                          color: _isContinuousReciting
+                              ? const Color(0xFFD4AF37)
+                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          width: _isContinuousReciting ? 1.5 : 1.0,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _isContinuousReciting
+                                ? const Color(0xFFD4AF37).withValues(alpha: isDark ? 0.2 : 0.15)
+                                : Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: Column(
                         children: [
@@ -1143,7 +1155,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                                           : 'اختر أي قارئ من القائمة بالأسفل واضغط تشغيل',
                                       style: TextStyle(
                                         fontSize: 11.5,
-                                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                        color: isDark ? Colors.white70 : const Color(0xFF475569),
                                       ),
                                     ),
                                   ],
@@ -1158,8 +1170,9 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red.shade400,
-                                      side: BorderSide(color: Colors.red.shade400),
+                                      foregroundColor: isDark ? Colors.red.shade400 : Colors.red.shade700,
+                                      backgroundColor: isDark ? Colors.transparent : Colors.red.shade50.withValues(alpha: 0.6),
+                                      side: BorderSide(color: isDark ? Colors.red.shade400 : Colors.red.shade300),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                       padding: const EdgeInsets.symmetric(vertical: 9),
                                     ),
@@ -1176,7 +1189,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFFD4AF37),
-                                      foregroundColor: Colors.black87,
+                                      foregroundColor: const Color(0xFF1B3A57),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                       padding: const EdgeInsets.symmetric(vertical: 9),
                                     ),
