@@ -222,9 +222,9 @@ class _WorshipScreenState extends State<WorshipScreen> {
         categoryKey: 'salawatsOnHujaj',
       ),
     ),
-    // 17. الخلفيات الولائية الشريفة
+    // 17. الخلفيات الإسلامية
     WorshipGridItem(
-      title: 'خلفيات ولائية',
+      title: 'خلفيات',
       assetPath: 'assets/images/Glossy Gallery Photo Badge.png',
       fallbackIcon: Icons.wallpaper_rounded,
       screenBuilder: (_) => const WallpapersScreen(),

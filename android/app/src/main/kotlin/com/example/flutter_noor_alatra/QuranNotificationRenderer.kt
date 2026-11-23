@@ -38,28 +38,49 @@ object QuranNotificationRenderer {
     }
 
     /**
-     * Renders Quranic verse with sacred quotation brackets and the AyahMedallionSpan into a high-res Bitmap
+     * Renders Quranic verse with sacred quotation brackets and AyahMedallionSpans.
+     * Supports multiple verses separated by '•', rendering consecutive rosettes for each ayah (e.g. Surah Al-Kawthar)!
+     * Also applies Kashida justification (JUSTIFICATION_MODE_INTER_WORD) and enlarged bold text.
      */
     fun renderAyahBitmap(
         context: Context,
         verseText: String,
-        ayahNum: Int,
-        widthPx: Int = 960
+        startAyahNum: Int,
+        widthPx: Int = 1000
     ): Bitmap {
-        val arabicNum = toArabicDigits(ayahNum)
-        val fullText = "﴿ $verseText ﴾ \uFFFC"
+        val parts = verseText.split("•").map { it.trim() }.filter { it.isNotEmpty() }
+        val sb = StringBuilder()
+        sb.append("﴿ ")
+
+        val markers = mutableListOf<Pair<Int, String>>()
+        var currentNum = startAyahNum
+
+        for (i in parts.indices) {
+            sb.append(parts[i])
+            sb.append(" ")
+            val markerPos = sb.length
+            sb.append("\uFFFC")
+            markers.add(Pair(markerPos, toArabicDigits(currentNum)))
+            currentNum++
+            if (i < parts.size - 1) {
+                sb.append(" ")
+            }
+        }
+        sb.append(" ﴾")
+
+        val fullText = sb.toString()
         val spannable = SpannableStringBuilder(fullText)
 
-        val span = AyahMedallionSpan(arabicNum)
-        val markerIndex = fullText.indexOf('\uFFFC')
-        if (markerIndex != -1) {
-            spannable.setSpan(span, markerIndex, markerIndex + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        for (marker in markers) {
+            val idx = marker.first
+            val numStr = marker.second
+            val span = AyahMedallionSpan(numStr)
+            spannable.setSpan(span, idx, idx + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
 
         val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#1E293B")
-            textSize = 38f
-            // Attempt to load the Quranic fonts shipped in flutter assets
+            color = Color.parseColor("#0F172A")
+            textSize = 50f // Enlarged font size for maximum clarity and prominence
             try {
                 typeface = Typeface.createFromAsset(context.assets, "flutter_assets/assets/fonts/AmiriQuran-Regular.ttf")
             } catch (_: Exception) {
@@ -76,12 +97,16 @@ object QuranNotificationRenderer {
         }
 
         val staticLayout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            StaticLayout.Builder.obtain(spannable, 0, spannable.length, textPaint, widthPx)
+            val builder = StaticLayout.Builder.obtain(spannable, 0, spannable.length, textPaint, widthPx)
                 .setAlignment(Layout.Alignment.ALIGN_NORMAL)
                 .setTextDirection(TextDirectionHeuristics.RTL)
-                .setLineSpacing(14f, 1.25f)
+                .setLineSpacing(18f, 1.25f)
                 .setIncludePad(true)
-                .build()
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                builder.setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD) // Kashida / Inter-word justification
+            }
+            builder.build()
         } else {
             @Suppress("DEPRECATION")
             StaticLayout(
@@ -90,13 +115,13 @@ object QuranNotificationRenderer {
                 widthPx,
                 Layout.Alignment.ALIGN_NORMAL,
                 1.25f,
-                14f,
+                18f,
                 true
             )
         }
 
-        val paddingTop = 14
-        val paddingBottom = 16
+        val paddingTop = 18
+        val paddingBottom = 22
         val height = staticLayout.height + paddingTop + paddingBottom
         val bitmap = Bitmap.createBitmap(widthPx, height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)

@@ -39,8 +39,13 @@ class WallpaperService {
       final List<dynamic> list = json.decode(jsonStr);
       _cachedList = list.map((e) => WallpaperItem.fromJson(e as Map<String, dynamic>)).toList();
 
-      // Trigger silent background sync from GitHub repository
-      _syncFromGithub();
+      // Trigger daily background sync from GitHub repository
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final lastSync = prefs.getString('wallpapers_last_daily_sync');
+      if (lastSync != today || forceRefresh) {
+        _syncFromGithub();
+        await prefs.setString('wallpapers_last_daily_sync', today);
+      }
 
       return _cachedList;
     } catch (e) {

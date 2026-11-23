@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -101,8 +102,8 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
       backgroundColor: isDark ? const Color(0xFF0B132B) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
-          'الخلفيات الولائية الشريفة',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          'خلفيات العتبات والمراقد المقدسة',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
         centerTitle: true,
         actions: [
@@ -320,11 +321,36 @@ class _WallpaperCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Image
-            Image.asset(
-              'assets/images/Glossy Gallery Photo Badge.png',
-              fit: BoxFit.cover,
-            ),
+            // Real Shrine Image via CachedNetworkImage with Badge placeholder
+            if (item.imageUrl.startsWith('http'))
+              CachedNetworkImage(
+                imageUrl: item.imageUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: const Color(0xFF059669),
+                      ),
+                    ),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Image.asset(
+                  'assets/images/Glossy Gallery Photo Badge.png',
+                  fit: BoxFit.cover,
+                ),
+              )
+            else
+              Image.asset(
+                item.imageUrl.startsWith('assets/')
+                    ? item.imageUrl
+                    : 'assets/images/Glossy Gallery Photo Badge.png',
+                fit: BoxFit.cover,
+              ),
 
             // Top gradient & HD badge
             Positioned(
@@ -593,10 +619,31 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
             child: InteractiveViewer(
               minScale: 1.0,
               maxScale: 4.0,
-              child: Image.asset(
-                'assets/images/Glossy Gallery Photo Badge.png',
-                fit: BoxFit.contain,
-              ),
+              child: widget.item.imageUrl.startsWith('http')
+                  ? CachedNetworkImage(
+                      imageUrl: widget.item.imageUrl,
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => const Center(
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Color(0xFF059669),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Image.asset(
+                        'assets/images/Glossy Gallery Photo Badge.png',
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                  : Image.asset(
+                      widget.item.imageUrl.startsWith('assets/')
+                          ? widget.item.imageUrl
+                          : 'assets/images/Glossy Gallery Photo Badge.png',
+                      fit: BoxFit.contain,
+                    ),
             ),
           ),
 

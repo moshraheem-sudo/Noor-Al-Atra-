@@ -4,12 +4,12 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:layoutDirection="rtl"
-    android:paddingStart="10dp"
-    android:paddingEnd="10dp"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
     android:paddingTop="6dp"
     android:paddingBottom="6dp">
 
-    <!-- Top header row with surah name and title -->
+    <!-- Header Row: Single clear title line with app name -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -22,31 +22,37 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="سورة البقرة"
+            android:text="سورة البقرة • آية ١"
             android:textColor="#059669"
             android:textStyle="bold"
-            android:textSize="12.5sp" />
+            android:textSize="13sp"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
         <TextView
             android:id="@+id/tv_quran_notif_subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="تذكير قرآني • نور العترة"
+            android:layout_marginStart="8dp"
+            android:text="نور العترة"
             android:textColor="#64748B"
-            android:textSize="10.5sp" />
+            android:textSize="11sp"
+            android:singleLine="true"
+            android:maxLines="1" />
     </LinearLayout>
 
-    <!-- Ayah Bitmap Render with Rosette & Centered Number -->
+    <!-- Ayah Bitmap Render with Rosettes & Kashida Justification -->
     <ImageView
         android:id="@+id/iv_quran_ayah_bitmap"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:adjustViewBounds="true"
         android:scaleType="fitCenter"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="3dp"
         android:layout_marginBottom="4dp" />
 
-    <!-- Action Buttons Row -->
+    <!-- Action Buttons Row: Horizontal without wrapping -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -58,26 +64,30 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="اقرأ الآيات 📖"
-            android:textSize="11.5sp"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="#059669"
-            android:paddingStart="8dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp" />
+            android:singleLine="true"
+            android:maxLines="1"
+            android:paddingStart="6dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp" />
 
         <TextView
             android:id="@+id/btn_listen_ayah"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="8dp"
             android:text="استمع الآن ▶"
-            android:textSize="11.5sp"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="#0284C7"
-            android:paddingStart="8dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp" />
+            android:singleLine="true"
+            android:maxLines="1"
+            android:paddingStart="6dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp" />
     </LinearLayout>
 </LinearLayout>
