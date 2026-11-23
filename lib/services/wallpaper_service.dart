@@ -139,6 +139,48 @@ class WallpaperService {
     }
   }
 
+  /// Copies the wallpaper image to public pictures/downloads gallery
+  Future<String?> saveWallpaperToGallery(String imageUrl, String id) async {
+    try {
+      final file = await downloadWallpaperFile(imageUrl, id);
+      if (file == null || !file.existsSync()) return null;
+
+      // On Android, copy to public Pictures or Downloads directory if accessible
+      Directory? targetDir;
+      if (Platform.isAndroid) {
+        final publicPictures = Directory('/storage/emulated/0/Pictures/NoorAlAtra');
+        final publicDownloads = Directory('/storage/emulated/0/Download');
+
+        try {
+          if (!publicPictures.existsSync()) {
+            publicPictures.createSync(recursive: true);
+          }
+          targetDir = publicPictures;
+        } catch (_) {
+          try {
+            if (publicDownloads.existsSync()) {
+              targetDir = publicDownloads;
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (targetDir == null) {
+        final extDir = await getExternalStorageDirectory();
+        targetDir = extDir ?? await getApplicationDocumentsDirectory();
+      }
+
+      final fileName = 'NoorAlAtra_Wallpaper_${id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final savedFile = File('${targetDir.path}/$fileName');
+      await file.copy(savedFile.path);
+
+      return savedFile.path;
+    } catch (e) {
+      debugPrint('Error saving wallpaper to gallery: $e');
+      return null;
+    }
+  }
+
   /// Applies image as device wallpaper using native WallpaperManager
   /// [target]: 'home', 'lock', or 'both'
   Future<bool> applyDeviceWallpaper({

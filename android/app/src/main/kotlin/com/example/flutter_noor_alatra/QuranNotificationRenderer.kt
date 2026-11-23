@@ -46,7 +46,7 @@ object QuranNotificationRenderer {
         context: Context,
         verseText: String,
         startAyahNum: Int,
-        widthPx: Int = 1000
+        widthPx: Int = 680
     ): Bitmap {
         val parts = verseText.split("•").map { it.trim() }.filter { it.isNotEmpty() }
         val sb = StringBuilder()
@@ -80,7 +80,7 @@ object QuranNotificationRenderer {
 
         val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.parseColor("#0F172A")
-            textSize = 50f // Enlarged font size for maximum clarity and prominence
+            textSize = 58f // Prominent, clear Quranic font size matching reference design
             try {
                 typeface = Typeface.createFromAsset(context.assets, "flutter_assets/assets/fonts/AmiriQuran-Regular.ttf")
             } catch (_: Exception) {
@@ -100,7 +100,7 @@ object QuranNotificationRenderer {
             val builder = StaticLayout.Builder.obtain(spannable, 0, spannable.length, textPaint, widthPx)
                 .setAlignment(Layout.Alignment.ALIGN_NORMAL)
                 .setTextDirection(TextDirectionHeuristics.RTL)
-                .setLineSpacing(18f, 1.25f)
+                .setLineSpacing(14f, 1.2f)
                 .setIncludePad(true)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -114,14 +114,14 @@ object QuranNotificationRenderer {
                 textPaint,
                 widthPx,
                 Layout.Alignment.ALIGN_NORMAL,
-                1.25f,
-                18f,
+                1.2f,
+                14f,
                 true
             )
         }
 
-        val paddingTop = 18
-        val paddingBottom = 22
+        val paddingTop = 10
+        val paddingBottom = 14
         val height = staticLayout.height + paddingTop + paddingBottom
         val bitmap = Bitmap.createBitmap(widthPx, height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)

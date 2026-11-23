@@ -102,8 +102,8 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
       backgroundColor: isDark ? const Color(0xFF0B132B) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
-          'خلفيات العتبات والمراقد المقدسة',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+          'خلفيات',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
         actions: [
@@ -471,76 +471,80 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
   }
 
   Future<void> _setWallpaperDialog() async {
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Color(0xFF1E293B),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
+        return SafeArea(
+          child: Container(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 24 + bottomInset),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1E293B),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'تعيين كخلفية للجهاز 📱',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                const Text(
+                  'تعيين كخلفية للجهاز 📱',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'اختر الشاشة التي ترغب بتطبيق الخلفية الولائية عليها:',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const Icon(Icons.home_rounded, color: Color(0xFF059669)),
-                title: const Text('الشاشة الرئيسية فقط', style: TextStyle(color: Colors.white)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                tileColor: Colors.white.withValues(alpha: 0.05),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _applyWallpaper('home');
-                },
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: const Icon(Icons.lock_rounded, color: Color(0xFF0284C7)),
-                title: const Text('شاشة القفل فقط', style: TextStyle(color: Colors.white)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                tileColor: Colors.white.withValues(alpha: 0.05),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _applyWallpaper('lock');
-                },
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: const Icon(Icons.phone_android_rounded, color: Colors.amber),
-                title: const Text('كلا الشاشتين (الرئيسية والقفل)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                tileColor: Colors.amber.withValues(alpha: 0.15),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _applyWallpaper('both');
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
+                const SizedBox(height: 6),
+                const Text(
+                  'اختر الشاشة التي ترغب بتطبيق الخلفية عليها:',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: const Icon(Icons.home_rounded, color: Color(0xFF059669)),
+                  title: const Text('الشاشة الرئيسية فقط', style: TextStyle(color: Colors.white)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  tileColor: Colors.white.withValues(alpha: 0.05),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _applyWallpaper('home');
+                  },
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: const Icon(Icons.lock_rounded, color: Color(0xFF0284C7)),
+                  title: const Text('شاشة القفل فقط', style: TextStyle(color: Colors.white)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  tileColor: Colors.white.withValues(alpha: 0.05),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _applyWallpaper('lock');
+                  },
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: const Icon(Icons.phone_android_rounded, color: Colors.amber),
+                  title: const Text('كلا الشاشتين (الرئيسية والقفل)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  tileColor: Colors.amber.withValues(alpha: 0.15),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _applyWallpaper('both');
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         );
       },
@@ -574,6 +578,50 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('حدث خطأ أثناء تطبيق الخلفية: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _downloadToGallery() async {
+    setState(() => _isProcessing = true);
+    try {
+      final savedPath = await _wallpaperService.saveWallpaperToGallery(
+        widget.item.imageUrl,
+        widget.item.id,
+      );
+
+      if (mounted) {
+        if (savedPath != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'تم حفظ الصورة بنجاح في معرض الصور الخاص بك 📥✨',
+                style: TextStyle(fontFamily: 'Amiri', fontSize: 14),
+              ),
+              backgroundColor: const Color(0xFF059669),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('تعذر حفظ الصورة في المعرض، يرجى التحقق من الأذونات'),
+              backgroundColor: Colors.red.shade700,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء تنزيل الصورة: $e'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -724,12 +772,23 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
                             )
                           : const Icon(Icons.wallpaper_rounded, size: 20),
                       label: Text(
-                        _isProcessing ? 'جاري التطبيق...' : 'تعيين كخلفية',
+                        _isProcessing ? 'جاري المعالجة...' : 'تعيين كخلفية',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
+                  // Download to Gallery Button
+                  IconButton(
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                      side: const BorderSide(color: Color(0xFF0284C7), width: 1.2),
+                    ),
+                    icon: const Icon(Icons.download_rounded, color: Color(0xFF38BDF8)),
+                    tooltip: 'تنزيل وحفظ في المعرض',
+                    onPressed: _isProcessing ? null : _downloadToGallery,
+                  ),
+                  const SizedBox(width: 6),
                   // Share Button
                   IconButton(
                     style: IconButton.styleFrom(

@@ -9,13 +9,13 @@
     android:paddingTop="6dp"
     android:paddingBottom="6dp">
 
-    <!-- Header Row: Single clear title line with app name -->
+    <!-- Header Row: Single clear title line matching reference -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingBottom="2dp">
+        android:paddingBottom="4dp">
 
         <TextView
             android:id="@+id/tv_quran_notif_title"
@@ -25,7 +25,7 @@
             android:text="سورة البقرة • آية ١"
             android:textColor="#059669"
             android:textStyle="bold"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:singleLine="true"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -37,19 +37,19 @@
             android:layout_marginStart="8dp"
             android:text="نور العترة"
             android:textColor="#64748B"
-            android:textSize="11sp"
+            android:textSize="11.5sp"
             android:singleLine="true"
             android:maxLines="1" />
     </LinearLayout>
 
-    <!-- Ayah Bitmap Render with Rosettes & Kashida Justification -->
+    <!-- Ayah Bitmap Render with Large Bold Font, Rosettes & Kashida Justification -->
     <ImageView
         android:id="@+id/iv_quran_ayah_bitmap"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:adjustViewBounds="true"
         android:scaleType="fitCenter"
-        android:layout_marginTop="3dp"
+        android:layout_marginTop="2dp"
         android:layout_marginBottom="4dp" />
 
     <!-- Action Buttons Row: Horizontal without wrapping -->

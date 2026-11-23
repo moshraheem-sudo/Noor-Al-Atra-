@@ -519,7 +519,7 @@ class MainActivity : FlutterActivity() {
                 }
 
                 val arabicAyah = QuranNotificationRenderer.toArabicDigits(ayahNum)
-                val bitmap = QuranNotificationRenderer.renderAyahBitmap(context, verseText, ayahNum, 960)
+                val bitmap = QuranNotificationRenderer.renderAyahBitmap(context, verseText, ayahNum, 680)
 
                 val remoteViews = RemoteViews(context.packageName, R.layout.notification_quran_verse)
                 remoteViews.setTextViewText(R.id.tv_quran_notif_title, "سورة $surahName • آية $arabicAyah")
