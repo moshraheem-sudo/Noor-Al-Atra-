@@ -19,6 +19,8 @@ import android.widget.RemoteViews
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.app.Activity
+import android.speech.RecognizerIntent
 import androidx.core.app.NotificationCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -32,6 +34,23 @@ class MainActivity : FlutterActivity() {
     private var sensorManager: SensorManager? = null
     private var proximitySensor: Sensor? = null
     private var sensorEventListener: SensorEventListener? = null
+
+    private val SPEECH_REQUEST_CODE = 7788
+    private var pendingSpeechResult: MethodChannel.Result? = null
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == SPEECH_REQUEST_CODE) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                val matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                val text = matches?.firstOrNull() ?: ""
+                pendingSpeechResult?.success(text)
+            } else {
+                pendingSpeechResult?.success("")
+            }
+            pendingSpeechResult = null
+        }
+    }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,12 +89,27 @@ class MainActivity : FlutterActivity() {
                     val sunrise = call.argument<String>("sunrise") ?: "05:50"
                     val dhuhr = call.argument<String>("dhuhr") ?: "11:48"
                     val maghrib = call.argument<String>("maghrib") ?: "05:59"
-                    showCustomPrayerNotification(fajr, sunrise, dhuhr, maghrib)
+                    showStaticPrayerNotification(this, fajr, sunrise, dhuhr, maghrib)
                     result.success(true)
                 }
                 "cancelCustomPrayerNotification" -> {
                     cancelCustomPrayerNotification()
                     result.success(true)
+                }
+                "startVoiceRecognition" -> {
+                    try {
+                        val prompt = call.argument<String>("prompt") ?: "تحدث الآن للبحث..."
+                        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar")
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "ar")
+                            putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
+                        }
+                        pendingSpeechResult = result
+                        startActivityForResult(intent, SPEECH_REQUEST_CODE)
+                    } catch (e: Exception) {
+                        result.error("SPEECH_NOT_AVAILABLE", e.localizedMessage, null)
+                    }
                 }
                 "installApk" -> {
                     val apkFilePath = call.argument<String>("filePath")
@@ -311,95 +345,108 @@ class MainActivity : FlutterActivity() {
         )
     }
 
-    private val PRAYER_NOTIF_ID = 1003
-    private val PRAYER_CHANNEL_ID = "sticky_prayer_cards_v8"
-
-    private fun showCustomPrayerNotification(fajr: String, sunrise: String, dhuhr: String, maghrib: String) {
+    private fun cancelCustomPrayerNotification() {
         try {
+            val prefs = getSharedPreferences("noor_alatra_prayer_times", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("is_active", false).apply()
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    PRAYER_CHANNEL_ID,
-                    "مواقيت الصلاة الدائمة",
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = "عرض أوقات الصلاة في بطاقات أنيقة مثبتة في مركز الإشعارات"
-                    setShowBadge(false)
-                    enableLights(false)
-                    enableVibration(false)
-                    setSound(null, null)
-                }
-                notificationManager.createNotificationChannel(channel)
-            }
-
-            val remoteViews = RemoteViews(packageName, R.layout.notification_prayer_cards)
-            remoteViews.setTextViewText(R.id.tv_time_fajr, fajr)
-            remoteViews.setTextViewText(R.id.tv_time_sunrise, sunrise)
-            remoteViews.setTextViewText(R.id.tv_time_dhuhr, dhuhr)
-            remoteViews.setTextViewText(R.id.tv_time_maghrib, maghrib)
-
-            val intent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            val pendingIntent = PendingIntent.getActivity(
-                this,
-                0,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-            val summaryText = "الفجر: $fajr | الشروق: $sunrise | الظهر: $dhuhr | المغرب: $maghrib"
-
-            val largeIconBitmap: Bitmap? = try {
-                BitmapFactory.decodeResource(resources, R.drawable.app_icon)
-                    ?: run {
-                        val drawable = packageManager.getApplicationIcon(packageName)
-                        val bmp = Bitmap.createBitmap(
-                            drawable.intrinsicWidth.coerceAtLeast(1),
-                            drawable.intrinsicHeight.coerceAtLeast(1),
-                            Bitmap.Config.ARGB_8888
-                        )
-                        val canvas = Canvas(bmp)
-                        drawable.setBounds(0, 0, canvas.width, canvas.height)
-                        drawable.draw(canvas)
-                        bmp
-                    }
-            } catch (e: Exception) {
-                null
-            }
-
-            val notification = NotificationCompat.Builder(this, PRAYER_CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setLargeIcon(largeIconBitmap)
-                .setContentTitle("مواقيت الصلاة")
-                .setContentText(summaryText)
-                .setCustomContentView(remoteViews)
-                .setCustomBigContentView(remoteViews)
-                .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .setAutoCancel(false)
-                .setOnlyAlertOnce(true)
-                .setShowWhen(false)
-                .setCategory(NotificationCompat.CATEGORY_STATUS)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .build().apply {
-                    flags = flags or android.app.Notification.FLAG_NO_CLEAR or android.app.Notification.FLAG_ONGOING_EVENT
-                }
-
-            notificationManager.notify(PRAYER_NOTIF_ID, notification)
+            notificationManager.cancel(PRAYER_NOTIF_ID)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun cancelCustomPrayerNotification() {
-        try {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.cancel(PRAYER_NOTIF_ID)
-        } catch (e: Exception) {
-            e.printStackTrace()
+    companion object {
+        const val PRAYER_NOTIF_ID = 1003
+        const val PRAYER_CHANNEL_ID = "sticky_prayer_cards_v8"
+
+        fun showStaticPrayerNotification(context: Context, fajr: String, sunrise: String, dhuhr: String, maghrib: String) {
+            try {
+                val prefs = context.getSharedPreferences("noor_alatra_prayer_times", Context.MODE_PRIVATE)
+                prefs.edit()
+                    .putBoolean("is_active", true)
+                    .putString("fajr", fajr)
+                    .putString("sunrise", sunrise)
+                    .putString("dhuhr", dhuhr)
+                    .putString("maghrib", maghrib)
+                    .apply()
+
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val channel = NotificationChannel(
+                        PRAYER_CHANNEL_ID,
+                        "مواقيت الصلاة الدائمة",
+                        NotificationManager.IMPORTANCE_LOW
+                    ).apply {
+                        description = "عرض أوقات الصلاة في بطاقات أنيقة مثبتة في مركز الإشعارات"
+                        setShowBadge(false)
+                        enableLights(false)
+                        enableVibration(false)
+                        setSound(null, null)
+                    }
+                    notificationManager.createNotificationChannel(channel)
+                }
+
+                val remoteViews = RemoteViews(context.packageName, R.layout.notification_prayer_cards)
+                remoteViews.setTextViewText(R.id.tv_time_fajr, fajr)
+                remoteViews.setTextViewText(R.id.tv_time_sunrise, sunrise)
+                remoteViews.setTextViewText(R.id.tv_time_dhuhr, dhuhr)
+                remoteViews.setTextViewText(R.id.tv_time_maghrib, maghrib)
+
+                val intent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+                val pendingIntent = PendingIntent.getActivity(
+                    context,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                val summaryText = "الفجر: $fajr | الشروق: $sunrise | الظهر: $dhuhr | المغرب: $maghrib"
+
+                val largeIconBitmap: Bitmap? = try {
+                    BitmapFactory.decodeResource(context.resources, R.drawable.app_icon)
+                        ?: run {
+                            val drawable = context.packageManager.getApplicationIcon(context.packageName)
+                            val bmp = Bitmap.createBitmap(
+                                drawable.intrinsicWidth.coerceAtLeast(1),
+                                drawable.intrinsicHeight.coerceAtLeast(1),
+                                Bitmap.Config.ARGB_8888
+                            )
+                            val canvas = Canvas(bmp)
+                            drawable.setBounds(0, 0, canvas.width, canvas.height)
+                            drawable.draw(canvas)
+                            bmp
+                        }
+                } catch (e: Exception) {
+                    null
+                }
+
+                val notification = NotificationCompat.Builder(context, PRAYER_CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setLargeIcon(largeIconBitmap)
+                    .setContentTitle("مواقيت الصلاة")
+                    .setContentText(summaryText)
+                    .setCustomContentView(remoteViews)
+                    .setCustomBigContentView(remoteViews)
+                    .setContentIntent(pendingIntent)
+                    .setOngoing(true)
+                    .setAutoCancel(false)
+                    .setOnlyAlertOnce(true)
+                    .setShowWhen(false)
+                    .setCategory(NotificationCompat.CATEGORY_STATUS)
+                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .build().apply {
+                        flags = flags or android.app.Notification.FLAG_NO_CLEAR or android.app.Notification.FLAG_ONGOING_EVENT
+                    }
+
+                notificationManager.notify(PRAYER_NOTIF_ID, notification)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

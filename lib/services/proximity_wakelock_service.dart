@@ -74,6 +74,19 @@ class ProximityWakeLockService {
     }
   }
 
+  /// Launch native Arabic voice recognition dialog and return recognized speech string
+  Future<String?> startVoiceRecognition({String prompt = 'تحدث الآن للبحث...'}) async {
+    try {
+      final res = await _wakelockChannel.invokeMethod<String>('startVoiceRecognition', {
+        'prompt': prompt,
+      });
+      return res?.trim();
+    } catch (e) {
+      debugPrint('Error starting voice recognition: $e');
+      return null;
+    }
+  }
+
   /// Check if the app is already whitelisted / exempt from battery optimization
   Future<bool> isBatteryOptimizationIgnored() async {
     try {

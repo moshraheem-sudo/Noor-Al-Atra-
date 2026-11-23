@@ -7,6 +7,7 @@ import '../providers/quran_provider.dart';
 import '../services/hijri_date_service.dart';
 import '../services/quran_api_service.dart';
 import '../services/quran_audio_download_service.dart';
+import '../services/voice_search_service.dart';
 import '../widgets/quran_bookmarks_sheet.dart';
 import '../widgets/ayah_number_symbol.dart';
 import 'quran_reader_screen.dart';
@@ -624,13 +625,16 @@ class _QuranScreenState extends State<QuranScreen> {
                             color: const Color(0xFF0284C7),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('يرجى كتابة اسم السورة أو جزء من الآية للبحث الفوري'),
-                                  duration: Duration(seconds: 2),
-                                ),
+                            tooltip: 'البحث الصوتي',
+                            onPressed: () async {
+                              final spoken = await VoiceSearchService.startVoiceSearch(
+                                context,
+                                prompt: 'تحدث باسم السورة أو الآية الكريمة...',
                               );
+                              if (spoken != null && spoken.isNotEmpty) {
+                                _searchCtrl.text = spoken;
+                                _onSearchChanged(spoken);
+                              }
                             },
                           ),
                         ),

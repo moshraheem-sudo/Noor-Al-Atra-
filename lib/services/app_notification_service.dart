@@ -387,14 +387,16 @@ class AppNotificationService {
     final text = selected['text'] as String;
 
     final arabicAyahNum = HijriDateService.toArabicDigits(ayahNum);
-    const title = 'آية من القرآن الكريم 📖';
-    final body = '$text ﴿$arabicAyahNum﴾ [سورة $surahName]';
+    final title = 'سورة $surahName • آية $arabicAyahNum 📖';
+    // Authentic Quranic quotation marks and end-of-ayah rosette symbol with number enclosed
+    final body = '﴿ $text ﴾ ۝$arabicAyahNum';
 
     final bigTextStyleInformation = BigTextStyleInformation(
       body,
       htmlFormatBigText: false,
       contentTitle: title,
       htmlFormatContentTitle: false,
+      summaryText: 'سورة $surahName 📖',
     );
 
     final androidDetails = AndroidNotificationDetails(

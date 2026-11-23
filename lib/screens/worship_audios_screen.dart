@@ -9,6 +9,7 @@ import '../models/worship_audio.dart';
 import '../services/data_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/settings_controller.dart';
+import '../services/voice_search_service.dart';
 import '../widgets/mini_audio_player.dart';
 import '../widgets/mini_player_widget.dart';
 import '../widgets/app_bottom_nav_bar.dart';
@@ -331,6 +332,20 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                                 setState(() => _searchQuery = '');
                               },
                             ),
+                          IconButton(
+                            icon: const Icon(Icons.mic, size: 20, color: Color(0xFF0284C7)),
+                            tooltip: 'البحث الصوتي',
+                            onPressed: () async {
+                              final spoken = await VoiceSearchService.startVoiceSearch(
+                                context,
+                                prompt: 'تحدث باسم المقطع أو القارئ...',
+                              );
+                              if (spoken != null && spoken.isNotEmpty) {
+                                _searchCtrl.text = spoken;
+                                setState(() => _searchQuery = spoken);
+                              }
+                            },
+                          ),
                           const SizedBox(width: 8),
                         ],
                       )

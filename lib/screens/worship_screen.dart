@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/worship_provider.dart';
 import '../services/settings_controller.dart';
+import '../services/voice_search_service.dart';
 import 'worship_detail_screen.dart';
 import 'worship_category_detail_screen.dart';
 import 'prayer_times_screen.dart';
@@ -455,15 +456,34 @@ class _WorshipScreenState extends State<WorshipScreen> {
                             color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                           ),
                           prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF0284C7), size: 22),
-                          suffixIcon: isSearching
-                              ? IconButton(
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isSearching)
+                                IconButton(
                                   icon: const Icon(Icons.clear_rounded, size: 20),
                                   onPressed: () {
                                     _searchCtrl.clear();
                                     provider.setSearchQuery('');
                                   },
-                                )
-                              : null,
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.mic, color: Color(0xFF0284C7), size: 20),
+                                tooltip: 'البحث الصوتي',
+                                onPressed: () async {
+                                  final spoken = await VoiceSearchService.startVoiceSearch(
+                                    context,
+                                    prompt: 'تحدث باسم الدعاء أو العمل...',
+                                  );
+                                  if (spoken != null && spoken.isNotEmpty) {
+                                    _searchCtrl.text = spoken;
+                                    provider.setSearchQuery(spoken);
+                                  }
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                          ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                         ),
