@@ -25,9 +25,24 @@ class WallpaperService {
   static const String wallpapersUrl =
       'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/wallpapers.json';
 
-  static const String _prefsCacheKey = 'cached_islamic_wallpapers_v3';
-  static const String _prefsVersionKey = 'cached_islamic_version_v3';
-  static const String _prefsLastSyncKey = 'cached_islamic_last_sync_v3';
+  static String pageUrl(int pageNumber) =>
+      'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/pages/page_$pageNumber.json';
+
+  static const Map<String, String> categoryEndpoints = {
+    'events': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/events.json',
+    'abbasi': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/abbasi.json',
+    'hussaini': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/hussaini.json',
+    'alawi': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/alawi.json',
+    'kadhimi': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/kadhimi.json',
+    'askari': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/askari.json',
+    'ridhawi': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/ridhawi.json',
+    'shrines': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/shrines.json',
+    'architecture': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/architecture.json',
+  };
+
+  static const String _prefsCacheKey = 'cached_islamic_wallpapers_v4';
+  static const String _prefsVersionKey = 'cached_islamic_version_v4';
+  static const String _prefsLastSyncKey = 'cached_islamic_last_sync_v4';
 
   List<WallpaperItem> _cachedList = [];
 
@@ -44,8 +59,12 @@ class WallpaperService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Clear legacy broken cache if present
-      for (final oldKey in ['cached_wallpapers_json_v1', 'cached_islamic_wallpapers_data_v2']) {
+      // Clear legacy broken caches if present
+      for (final oldKey in [
+        'cached_wallpapers_json_v1',
+        'cached_islamic_wallpapers_data_v2',
+        'cached_islamic_wallpapers_v3',
+      ]) {
         if (prefs.containsKey(oldKey)) {
           await prefs.remove(oldKey);
         }
@@ -179,6 +198,45 @@ class WallpaperService {
       }
     } catch (e) {
       debugPrint('[WallpaperService] Sync notice (cached items remain available): $e');
+    }
+    return null;
+  }
+
+  /// Fetches items for a specific category endpoint (e.g. 'events', 'abbasi', etc.)
+  Future<List<WallpaperItem>?> fetchCategoryWallpapers(String slug) async {
+    final endpoint = categoryEndpoints[slug];
+    if (endpoint == null) return null;
+    try {
+      final res = await http
+          .get(Uri.parse(endpoint), headers: {'User-Agent': 'NoorAlAtra/1.0'})
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final body = utf8.decode(res.bodyBytes);
+        final decoded = json.decode(body);
+        final List<dynamic> list = _extractItemsList(decoded);
+        return list.map((e) => WallpaperItem.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (e) {
+      debugPrint('[WallpaperService] Error fetching category $slug: $e');
+    }
+    return null;
+  }
+
+  /// Fetches a specific page of wallpapers (page 1 to 23)
+  Future<List<WallpaperItem>?> fetchPageWallpapers(int pageNumber) async {
+    try {
+      final url = pageUrl(pageNumber);
+      final res = await http
+          .get(Uri.parse(url), headers: {'User-Agent': 'NoorAlAtra/1.0'})
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final body = utf8.decode(res.bodyBytes);
+        final decoded = json.decode(body);
+        final List<dynamic> list = _extractItemsList(decoded);
+        return list.map((e) => WallpaperItem.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (e) {
+      debugPrint('[WallpaperService] Error fetching page $pageNumber: $e');
     }
     return null;
   }

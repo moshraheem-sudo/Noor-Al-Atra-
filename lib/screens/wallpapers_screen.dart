@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
@@ -17,6 +18,7 @@ class WallpapersScreen extends StatefulWidget {
 class _WallpapersScreenState extends State<WallpapersScreen> {
   final WallpaperService _wallpaperService = WallpaperService();
   final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   List<WallpaperItem> _allWallpapers = [];
   List<WallpaperItem> _filteredWallpapers = [];
@@ -24,29 +26,107 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
   bool _isRefreshing = false;
   String _selectedCategory = 'الكل';
   String _searchQuery = '';
+  int _displayedCount = 50;
 
-  List<String> get _categories {
-    final Set<String> cats = {'الكل'};
-    for (final item in _allWallpapers) {
-      if (item.category.trim().isNotEmpty) {
-        cats.add(item.category.trim());
-      }
-    }
-    if (cats.length == 1) {
-      cats.addAll([
-        'العتبة العلوية المقدسة',
-        'العتبة العسكرية المقدسة',
-        'العتبة الحسينية المقدسة',
-        'العتبة العباسية المقدسة',
-      ]);
-    }
-    return cats.toList();
+  static const List<Map<String, dynamic>> _categoryConfigs = [
+    {
+      'title': 'الكل',
+      'shortTitle': 'الكل',
+      'slug': 'all',
+      'keywords': <String>[],
+    },
+    {
+      'title': 'المراقد والمزارات الإسلامية',
+      'shortTitle': 'المراقد والمزارات',
+      'slug': 'shrines',
+      'keywords': ['المراقد', 'المزارات'],
+    },
+    {
+      'title': 'العتبة العلوية المقدسة',
+      'shortTitle': 'العتبة العلوية',
+      'slug': 'alawi',
+      'keywords': ['العلوية'],
+    },
+    {
+      'title': 'العتبة العسكرية المقدسة',
+      'shortTitle': 'العتبة العسكرية',
+      'slug': 'askari',
+      'keywords': ['العسكرية'],
+    },
+    {
+      'title': 'العتبة العباسية المقدسة',
+      'shortTitle': 'العتبة العباسية',
+      'slug': 'abbasi',
+      'keywords': ['العباسية'],
+    },
+    {
+      'title': 'العتبة الحسينية المقدسة',
+      'shortTitle': 'العتبة الحسينية',
+      'slug': 'hussaini',
+      'keywords': ['الحسينية'],
+    },
+    {
+      'title': 'العتبة الكاظمية المقدسة',
+      'shortTitle': 'العتبة الكاظمية',
+      'slug': 'kadhimi',
+      'keywords': ['الكاظمية'],
+    },
+    {
+      'title': 'العتبة الرضوية المقدسة',
+      'shortTitle': 'العتبة الرضوية',
+      'slug': 'ridhawi',
+      'keywords': ['الرضوية'],
+    },
+    {
+      'title': 'المناسبات والفعاليات الدينية',
+      'shortTitle': 'نافذة عاشوراء',
+      'slug': 'events',
+      'keywords': ['المناسبات', 'عاشوراء', 'الفعاليات', 'الشعائر'],
+    },
+    {
+      'title': 'العمارة والزخارف الإسلامية',
+      'shortTitle': 'العمارة والزخارف',
+      'slug': 'architecture',
+      'keywords': ['العمارة', 'الزخارف'],
+    },
+  ];
+
+  int _getCountForCategory(String title) {
+    if (title == 'الكل') return _allWallpapers.length;
+    final cfg = _categoryConfigs.firstWhere(
+      (c) => c['title'] == title || c['shortTitle'] == title,
+      orElse: () => {'keywords': <String>[title]},
+    );
+    final List<String> keywords = (cfg['keywords'] as List).cast<String>();
+    return _allWallpapers.where((item) {
+      final cat = item.category;
+      return keywords.any((kw) => cat.contains(kw));
+    }).length;
   }
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
+      if (_displayedCount < _filteredWallpapers.length) {
+        setState(() {
+          _displayedCount = math.min(_displayedCount + 50, _filteredWallpapers.length);
+        });
+      }
+    }
   }
 
   Future<void> _loadData({bool forceRefresh = false}) async {
@@ -85,10 +165,14 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
     List<WallpaperItem> result = _allWallpapers;
 
     if (_selectedCategory != 'الكل') {
+      final cfg = _categoryConfigs.firstWhere(
+        (c) => c['title'] == _selectedCategory || c['shortTitle'] == _selectedCategory,
+        orElse: () => {'keywords': <String>[_selectedCategory]},
+      );
+      final List<String> keywords = (cfg['keywords'] as List).cast<String>();
       result = result.where((item) {
-        final cat = item.category.trim();
-        final sel = _selectedCategory.trim();
-        return cat == sel || cat.contains(sel) || sel.contains(cat);
+        final cat = item.category;
+        return keywords.any((kw) => cat.contains(kw));
       }).toList();
     }
 
@@ -104,6 +188,7 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
 
     setState(() {
       _filteredWallpapers = result;
+      _displayedCount = 50;
     });
   }
 
@@ -128,9 +213,9 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0B132B) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text(
-          'خلفيات',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        title: Text(
+          _allWallpapers.isNotEmpty ? 'خلفيات (${_allWallpapers.length})' : 'خلفيات',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
         actions: [
@@ -216,23 +301,27 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
             ),
           ),
 
-          // 2. Category Filter Pills
+          // 2. Category Filter Pills with Live Counts
           SizedBox(
             height: 48,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              itemCount: _categories.length,
+              itemCount: _categoryConfigs.length,
               itemBuilder: (context, index) {
-                final cat = _categories[index];
-                final isSelected = cat == _selectedCategory;
+                final cfg = _categoryConfigs[index];
+                final title = cfg['title'] as String;
+                final shortTitle = (cfg['shortTitle'] as String?) ?? title;
+                final isSelected = title == _selectedCategory || shortTitle == _selectedCategory;
+                final count = _getCountForCategory(title);
+
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: FilterChip(
                     label: Text(
-                      cat,
+                      count > 0 ? '$shortTitle ($count)' : shortTitle,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                         color: isSelected
                             ? Colors.white
@@ -251,7 +340,7 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
                             : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       ),
                     ),
-                    onSelected: (_) => _onCategorySelected(cat),
+                    onSelected: (_) => _onCategorySelected(title),
                   ),
                 );
               },
@@ -286,6 +375,7 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
                         ),
                       )
                     : GridView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.all(12),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
@@ -293,7 +383,7 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
-                        itemCount: _filteredWallpapers.length,
+                        itemCount: math.min(_displayedCount, _filteredWallpapers.length),
                         itemBuilder: (context, index) {
                           final item = _filteredWallpapers[index];
                           return _WallpaperCard(
