@@ -348,37 +348,49 @@ class _WallpaperCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Real Shrine Image via CachedNetworkImage with Badge placeholder
-            if ((item.thumbnailUrl.isNotEmpty ? item.thumbnailUrl : item.imageUrl).startsWith('http'))
-              CachedNetworkImage(
-                imageUrl: item.thumbnailUrl.isNotEmpty ? item.thumbnailUrl : item.imageUrl,
-                fit: BoxFit.cover,
-                memCacheWidth: 400,
-                placeholder: (context, url) => Container(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                  child: Center(
-                    child: SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: const Color(0xFF059669),
-                      ),
+            // Real Shrine Image via CachedNetworkImage with dual fallback
+            CachedNetworkImage(
+              imageUrl: item.thumbnailUrl.isNotEmpty ? item.thumbnailUrl : item.imageUrl,
+              httpHeaders: const {'User-Agent': 'NoorAlAtra/1.0'},
+              fit: BoxFit.cover,
+              memCacheWidth: 400,
+              placeholder: (context, url) => Container(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                child: const Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Color(0xFF059669),
                     ),
                   ),
                 ),
-                errorWidget: (context, url, error) => Image.asset(
+              ),
+              errorWidget: (context, url, error) {
+                final full = item.imageUrl;
+                final thumb = item.thumbnailUrl;
+                if (full.isNotEmpty && full != thumb && full.startsWith('http')) {
+                  return CachedNetworkImage(
+                    imageUrl: full,
+                    httpHeaders: const {'User-Agent': 'NoorAlAtra/1.0'},
+                    fit: BoxFit.cover,
+                    memCacheWidth: 400,
+                    placeholder: (_, __) => Container(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                    ),
+                    errorWidget: (_, __, ___) => Image.asset(
+                      'assets/images/Glossy Gallery Photo Badge.png',
+                      fit: BoxFit.cover,
+                    ),
+                  );
+                }
+                return Image.asset(
                   'assets/images/Glossy Gallery Photo Badge.png',
                   fit: BoxFit.cover,
-                ),
-              )
-            else
-              Image.asset(
-                item.imageUrl.startsWith('assets/')
-                    ? item.imageUrl
-                    : 'assets/images/Glossy Gallery Photo Badge.png',
-                fit: BoxFit.cover,
-              ),
+                );
+              },
+            ),
 
             // Top gradient & HD badge
             Positioned(
@@ -698,6 +710,7 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
               child: widget.item.imageUrl.startsWith('http')
                   ? CachedNetworkImage(
                       imageUrl: widget.item.imageUrl,
+                      httpHeaders: const {'User-Agent': 'NoorAlAtra/1.0'},
                       fit: BoxFit.contain,
                       placeholder: (context, url) => const Center(
                         child: SizedBox(

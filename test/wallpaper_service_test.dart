@@ -47,5 +47,17 @@ void main() {
       WallpaperService.wallpapersUrl,
       'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/wallpapers.json',
     );
+    expect(
+      WallpaperService.pagesIndexUrl,
+      'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/pages/index.json',
+    );
+    expect(
+      WallpaperService.page1Url,
+      'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/pages/page_1.json',
+    );
+    expect(
+      WallpaperService.categoriesIndexUrl,
+      'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/index.json',
+    );
   });
 }
