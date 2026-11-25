@@ -173,13 +173,27 @@ class AppNotificationService {
 
 
 
+  static const DarwinNotificationDetails defaultDarwinDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+  );
+
   /// Initialize local notification channels
   Future<void> init() async {
     if (_isInitialized) return;
 
     tz.initializeTimeZones();
     const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
-    const initSettings = InitializationSettings(android: androidSettings);
+    const darwinSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: darwinSettings,
+    );
 
     try {
       await _localNotifications.initialize(
@@ -190,6 +204,16 @@ class AppNotificationService {
         },
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
+
+      final iosPlugin = _localNotifications
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+      if (iosPlugin != null) {
+        await iosPlugin.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
 
       // Explicitly register Android Notification Channels for heads-up alerts, ongoing cards and sound
       final androidPlugin = _localNotifications
@@ -412,7 +436,7 @@ class AppNotificationService {
       ],
     );
 
-    final notificationDetails = NotificationDetails(android: androidDetails);
+    final notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
 
     try {
       await _localNotifications.show(
@@ -470,7 +494,7 @@ class AppNotificationService {
       ],
     );
 
-    final notificationDetails = NotificationDetails(android: androidDetails);
+    final notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
 
     try {
       await _localNotifications.show(
@@ -528,7 +552,7 @@ class AppNotificationService {
       largeIcon: const DrawableResourceAndroidBitmap('@drawable/app_icon'),
     );
 
-    final notificationDetails = NotificationDetails(android: androidDetails);
+    final notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
 
     try {
       await _localNotifications.show(
@@ -634,7 +658,7 @@ class AppNotificationService {
           largeIcon: const DrawableResourceAndroidBitmap('@drawable/app_icon'),
         );
 
-        final notificationDetails = NotificationDetails(android: androidDetails);
+        final notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
         await _localNotifications.show(
           id: 10001,
           title: 'مواقيت الصلاة الشرعية 🕌',
@@ -696,6 +720,7 @@ class AppNotificationService {
             body: 'بقي ١٠ دقائق على موعد أذان $pName • تهيأ للوضوء والصلاة',
             scheduledDate: tz.TZDateTime.from(rem10Time, tz.local),
             notificationDetails: const NotificationDetails(
+              iOS: defaultDarwinDetails,
               android: AndroidNotificationDetails(
                 'adhan_approaching_alerts_channel',
                 'تنبيهات اقتراب الصلاة والأذان',
@@ -727,6 +752,7 @@ class AppNotificationService {
             body: 'بقي ٥ دقائق على أذان $pName المبارك',
             scheduledDate: tz.TZDateTime.from(rem5Time, tz.local),
             notificationDetails: const NotificationDetails(
+              iOS: defaultDarwinDetails,
               android: AndroidNotificationDetails(
                 'adhan_approaching_alerts_channel',
                 'تنبيهات اقتراب الصلاة والأذان',
@@ -775,6 +801,7 @@ class AppNotificationService {
               body: 'حان الآن موعد صلاة $pName',
               scheduledDate: tz.TZDateTime.from(prayerDateTime, tz.local),
               notificationDetails: const NotificationDetails(
+                iOS: defaultDarwinDetails,
                 android: AndroidNotificationDetails(
                   'adhan_live_audio_channel_v6',
                   'أذان الصلاة المباشر',
@@ -820,6 +847,7 @@ class AppNotificationService {
               body: 'مضت ٥ دقائق على صلاة $pName • حان وقت التعقيبات والدعاء المأثور',
               scheduledDate: tz.TZDateTime.from(taqeebatTime, tz.local),
               notificationDetails: const NotificationDetails(
+                iOS: defaultDarwinDetails,
                 android: AndroidNotificationDetails(
                   'taqeebat_channel',
                   'تعقيبات الصلاة',
@@ -871,7 +899,7 @@ class AppNotificationService {
       largeIcon: DrawableResourceAndroidBitmap('@drawable/app_icon'),
     );
 
-    const notificationDetails = NotificationDetails(android: androidDetails);
+    const notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
 
     try {
       await _localNotifications.show(
@@ -936,7 +964,7 @@ class AppNotificationService {
       ],
     );
 
-    const notificationDetails = NotificationDetails(android: androidDetails);
+    const notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
 
     try {
       await _localNotifications.show(
@@ -1003,7 +1031,7 @@ class AppNotificationService {
       icon: '@drawable/ic_notification',
       largeIcon: DrawableResourceAndroidBitmap('@drawable/app_icon'),
     );
-    const notificationDetails = NotificationDetails(android: androidDetails);
+    const notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
     try {
       await _localNotifications.show(
         id: 4000 + Random().nextInt(1000),
@@ -1051,7 +1079,7 @@ class AppNotificationService {
       largeIcon: DrawableResourceAndroidBitmap('@drawable/app_icon'),
       showWhen: true,
     );
-    const notificationDetails = NotificationDetails(android: androidDetails);
+    const notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
     try {
       await _localNotifications.show(
         id: 99999,

@@ -332,12 +332,16 @@ class WallpaperService {
             }
           } catch (_) {}
         }
+
+        if (targetDir == null) {
+          try {
+            final extDir = await getExternalStorageDirectory();
+            targetDir = extDir;
+          } catch (_) {}
+        }
       }
 
-      if (targetDir == null) {
-        final extDir = await getExternalStorageDirectory();
-        targetDir = extDir ?? await getApplicationDocumentsDirectory();
-      }
+      targetDir ??= await getApplicationDocumentsDirectory();
 
       final ext = file.path.split('.').last;
       final fileName = 'NoorAlAtra_Wallpaper_${id}_${DateTime.now().millisecondsSinceEpoch}.$ext';
