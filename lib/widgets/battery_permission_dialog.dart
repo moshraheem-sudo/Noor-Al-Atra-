@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/app_notification_service.dart';
@@ -6,8 +7,9 @@ import '../services/proximity_wakelock_service.dart';
 class BatteryPermissionDialog extends StatelessWidget {
   const BatteryPermissionDialog({super.key});
 
-  /// Check if dialog should be displayed
+  /// Check if dialog should be displayed (Android-only)
   static Future<void> checkAndShow(BuildContext context, {bool force = false}) async {
+    if (!Platform.isAndroid) return;
     final isIgnored = await AppNotificationService().isBatteryOptimizationIgnored();
     if (isIgnored) return; // Battery optimization is already bypassed, do not show
 

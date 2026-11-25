@@ -1592,7 +1592,7 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
                     'تخصيص مؤذن لكل صلاة (متقدم)',
                     style: TextStyle(
                       fontFamily: 'Cairo',
-                      fontSize: 13.5,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: colors.accent,
                     ),
@@ -1601,7 +1601,7 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
                     'يمكنك اختيار مؤذن مختلف لكل فريضة (مثال: أسامة للفجر، عامر للظهر)',
                     style: TextStyle(
                       fontFamily: 'Cairo',
-                      fontSize: 10.5,
+                      fontSize: 11,
                       color: colors.textSub,
                     ),
                   ),
@@ -1685,7 +1685,7 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
                       pName,
                       style: TextStyle(
                         fontFamily: 'Cairo',
-                        fontSize: 13,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.bold,
                         color: colors.textTitle,
                       ),
@@ -1698,7 +1698,7 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
                             isCustom ? activeMuezzin : 'المؤذن الافتراضي ($activeMuezzin)',
                             style: TextStyle(
                               fontFamily: 'Cairo',
-                              fontSize: 11,
+                              fontSize: 11.5,
                               fontWeight: isCustom ? FontWeight.bold : FontWeight.normal,
                               color: isCustom ? colors.accent : colors.textSub,
                             ),
@@ -1718,7 +1718,7 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
                               'مخصص',
                               style: TextStyle(
                                 fontFamily: 'Cairo',
-                                fontSize: 9.5,
+                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
                                 color: colors.accent,
                               ),

@@ -906,7 +906,7 @@ class _QuranScreenState extends State<QuranScreen> {
                       Text(
                         chapter.nameArabic,
                         style: TextStyle(
-                          fontSize: 16.5,
+                          fontSize: 17.5,
                           fontWeight: FontWeight.bold,
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
@@ -915,7 +915,7 @@ class _QuranScreenState extends State<QuranScreen> {
                       Text(
                         '$typeText • $versesCountArabic آية',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           color: isDark ? Colors.white60 : const Color(0xFF64748B),
                         ),
                       ),

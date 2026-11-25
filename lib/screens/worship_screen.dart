@@ -225,7 +225,7 @@ class _WorshipScreenState extends State<WorshipScreen> {
     // 17. الخلفيات الإسلامية
     WorshipGridItem(
       title: 'خلفيات',
-      assetPath: 'assets/images/Glossy Gallery Photo Badge.png',
+      assetPath: 'assets/images/worship/wallpapers.png',
       fallbackIcon: Icons.wallpaper_rounded,
       screenBuilder: (_) => const WallpapersScreen(),
     ),
@@ -748,7 +748,7 @@ class _WorshipScreenState extends State<WorshipScreen> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 11.5,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
               height: 1.15,
               color: isDark ? Colors.white : const Color(0xFF1B3A57),
