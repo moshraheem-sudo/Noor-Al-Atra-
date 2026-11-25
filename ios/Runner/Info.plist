@@ -31,6 +31,9 @@
 	<string>يحتاج تطبيق نور العترة إلى إذن الموقع لتحديد اتجاه القبلة بدقة وحساب مواقيت الصلاة الشرعية لمدينتك.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>يحتاج تطبيق نور العترة إلى إذن الموقع لتحديث مواقيت الصلاة والتنبيهات تلقائياً عند تغيير موقعك.</string>
+	<!-- Motion Sensor Permissions for Qibla Compass & Sensors -->
+	<key>NSMotionUsageDescription</key>
+	<string>يستخدم تطبيق نور العترة مستشعرات الحركة والبوصلة المغناطيسية لتحديد اتجاه القبلة الشريفة بدقة متناهية.</string>
 	<!-- Microphone & Speech Recognition for Voice Search -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>يحتاج تطبيق نور العترة إلى استخدام الميكروفون للبحث الصوتي في القرآن الكريم وخلفيات العتبات المقدسة.</string>

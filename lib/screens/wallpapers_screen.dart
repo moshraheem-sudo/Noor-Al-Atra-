@@ -626,52 +626,68 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'تعيين كخلفية للجهاز 📱',
-                  style: TextStyle(
+                Text(
+                  Platform.isIOS ? 'حفظ وتعيين الخلفية 📱' : 'تعيين كخلفية للجهاز 📱',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'اختر الشاشة التي ترغب بتطبيق الخلفية عليها:',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                Text(
+                  Platform.isIOS
+                      ? 'في نظام iOS، يتم حفظ الصورة في ألبوم الصور لتتمكن من تعيينها من إعدادات الجهاز:'
+                      : 'اختر الشاشة التي ترغب بتطبيق الخلفية عليها:',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
-                ListTile(
-                  leading: const Icon(Icons.home_rounded, color: Color(0xFF059669)),
-                  title: const Text('الشاشة الرئيسية فقط', style: TextStyle(color: Colors.white)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  tileColor: Colors.white.withValues(alpha: 0.05),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _applyWallpaper('home');
-                  },
-                ),
-                const SizedBox(height: 8),
-                ListTile(
-                  leading: const Icon(Icons.lock_rounded, color: Color(0xFF0284C7)),
-                  title: const Text('شاشة القفل فقط', style: TextStyle(color: Colors.white)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  tileColor: Colors.white.withValues(alpha: 0.05),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _applyWallpaper('lock');
-                  },
-                ),
-                const SizedBox(height: 8),
-                ListTile(
-                  leading: const Icon(Icons.phone_android_rounded, color: Colors.amber),
-                  title: const Text('كلا الشاشتين (الرئيسية والقفل)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  tileColor: Colors.amber.withValues(alpha: 0.15),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _applyWallpaper('both');
-                  },
-                ),
+                if (Platform.isIOS)
+                  ListTile(
+                    leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF059669)),
+                    title: const Text('حفظ في ألبوم الصور للتعيين كخلفية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: const Text('اضغط هنا للحفظ ثم اختر "تعيين كخلفية" من إعدادات iOS', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    tileColor: const Color(0xFF059669).withValues(alpha: 0.15),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _applyWallpaper('both');
+                    },
+                  )
+                else ...[
+                  ListTile(
+                    leading: const Icon(Icons.home_rounded, color: Color(0xFF059669)),
+                    title: const Text('الشاشة الرئيسية فقط', style: TextStyle(color: Colors.white)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    tileColor: Colors.white.withValues(alpha: 0.05),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _applyWallpaper('home');
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    leading: const Icon(Icons.lock_rounded, color: Color(0xFF0284C7)),
+                    title: const Text('شاشة القفل فقط', style: TextStyle(color: Colors.white)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    tileColor: Colors.white.withValues(alpha: 0.05),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _applyWallpaper('lock');
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    leading: const Icon(Icons.phone_android_rounded, color: Colors.amber),
+                    title: const Text('كلا الشاشتين (الرئيسية والقفل)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    tileColor: Colors.amber.withValues(alpha: 0.15),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _applyWallpaper('both');
+                    },
+                  ),
+                ],
                 const SizedBox(height: 12),
               ],
             ),
@@ -691,10 +707,20 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
       if (file != null && file.existsSync()) {
         final success = await _wallpaperService.applyDeviceWallpaper(file: file, target: target);
         if (mounted) {
+          final String msg;
+          if (Platform.isIOS) {
+            msg = success
+                ? 'تم حفظ الصورة في ألبوم الصور بنجاح، يمكنك الآن تعيينها كخلفية من إعدادات iOS ✨'
+                : 'تعذر حفظ الصورة، يرجى منح إذن ألبوم الصور في إعدادات الجهاز';
+          } else {
+            msg = success
+                ? 'تم تعيين الخلفية بنجاح على جهازك المبارك ✨'
+                : 'تعذر تعيين الخلفية، يرجى المحاولة ثانية';
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                success ? 'تم تعيين الخلفية بنجاح على جهازك المبارك ✨' : 'تعذر تعيين الخلفية، يرجى المحاولة ثانية',
+                msg,
                 style: const TextStyle(fontFamily: 'Amiri', fontSize: 14),
               ),
               backgroundColor: success ? const Color(0xFF059669) : Colors.red.shade700,
