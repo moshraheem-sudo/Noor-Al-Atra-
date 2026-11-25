@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+import 'adhan_scheduler_service.dart';
 
 class ProximityWakeLockService {
   static final ProximityWakeLockService _instance = ProximityWakeLockService._internal();
@@ -29,7 +32,11 @@ class ProximityWakeLockService {
   /// Keep screen always on during prayer
   Future<void> enableKeepScreenOn() async {
     try {
-      await _wakelockChannel.invokeMethod('enableKeepScreenOn');
+      if (Platform.isIOS) {
+        await WakelockPlus.enable();
+      } else {
+        await _wakelockChannel.invokeMethod('enableKeepScreenOn');
+      }
     } catch (e) {
       debugPrint('Error enabling keep screen on: $e');
     }
@@ -38,7 +45,11 @@ class ProximityWakeLockService {
   /// Release screen lock
   Future<void> disableKeepScreenOn() async {
     try {
-      await _wakelockChannel.invokeMethod('disableKeepScreenOn');
+      if (Platform.isIOS) {
+        await WakelockPlus.disable();
+      } else {
+        await _wakelockChannel.invokeMethod('disableKeepScreenOn');
+      }
     } catch (e) {
       debugPrint('Error disabling keep screen on: $e');
     }
@@ -51,6 +62,7 @@ class ProximityWakeLockService {
     required String dhuhr,
     required String maghrib,
   }) async {
+    if (Platform.isIOS) return false;
     try {
       final res = await _wakelockChannel.invokeMethod('updateCustomPrayerNotification', {
         'fajr': fajr,
@@ -67,6 +79,7 @@ class ProximityWakeLockService {
 
   /// Cancel custom card prayer notification
   Future<void> cancelCustomPrayerNotification() async {
+    if (Platform.isIOS) return;
     try {
       await _wakelockChannel.invokeMethod('cancelCustomPrayerNotification');
     } catch (e) {
@@ -126,6 +139,7 @@ class ProximityWakeLockService {
 
   /// Check if the app is already whitelisted / exempt from battery optimization
   Future<bool> isBatteryOptimizationIgnored() async {
+    if (Platform.isIOS) return true;
     try {
       final res = await _wakelockChannel.invokeMethod<bool>('isBatteryOptimizationIgnored');
       return res ?? false;
@@ -137,6 +151,7 @@ class ProximityWakeLockService {
 
   /// Request exemption from battery optimization directly to prevent delayed prayer alarms
   Future<bool> requestIgnoreBatteryOptimizations() async {
+    if (Platform.isIOS) return true;
     try {
       final res = await _wakelockChannel.invokeMethod<bool>('requestIgnoreBatteryOptimizations');
       return res ?? false;
@@ -148,6 +163,7 @@ class ProximityWakeLockService {
 
   /// Open system battery optimization settings
   Future<void> openBatterySettings() async {
+    if (Platform.isIOS) return;
     try {
       await _wakelockChannel.invokeMethod('openBatterySettings');
     } catch (e) {
@@ -157,6 +173,7 @@ class ProximityWakeLockService {
 
   /// Check if exact alarms can be scheduled on Android 12+
   Future<bool> canScheduleExactAlarms() async {
+    if (Platform.isIOS) return true;
     try {
       final res = await _wakelockChannel.invokeMethod<bool>('canScheduleExactAlarms');
       return res ?? true;
@@ -168,6 +185,7 @@ class ProximityWakeLockService {
 
   /// Open exact alarm permission settings
   Future<void> openExactAlarmSettings() async {
+    if (Platform.isIOS) return;
     try {
       await _wakelockChannel.invokeMethod('openExactAlarmSettings');
     } catch (e) {
@@ -181,6 +199,13 @@ class ProximityWakeLockService {
     String? muezzinPath,
     String? muezzinName,
   }) async {
+    if (Platform.isIOS) {
+      await AdhanSchedulerService().playAdhan(
+        prayerName: prayerName,
+        muezzinId: muezzinName,
+      );
+      return true;
+    }
     try {
       final res = await _wakelockChannel.invokeMethod<bool>('playNativeAdhan', {
         'prayerName': prayerName,
@@ -196,6 +221,10 @@ class ProximityWakeLockService {
 
   /// Stop native Holy Adhan playback immediately
   Future<void> stopNativeAdhan() async {
+    if (Platform.isIOS) {
+      await AdhanSchedulerService().stopAdhan();
+      return;
+    }
     try {
       await _wakelockChannel.invokeMethod('stopNativeAdhan');
     } catch (e) {

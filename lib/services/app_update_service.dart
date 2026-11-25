@@ -388,6 +388,13 @@ class AppUpdateService {
     String fallbackUrl, {
     bool autoInstall = false,
   }) {
+    if (Platform.isIOS) {
+      // iOS cannot install APKs; launch the web release page instead
+      final target = Uri.parse(fallbackUrl.isNotEmpty ? fallbackUrl : primaryRepoUrl);
+      launchUrl(target, mode: LaunchMode.externalApplication);
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,

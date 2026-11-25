@@ -1,0 +1,18 @@
+name: noor_ios_bridge
+description: iOS native bridge plugin with Swift Package Manager support for Noor Al-Atra
+version: 0.0.1
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: NoorIosBridgePlugin

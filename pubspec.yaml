@@ -17,7 +17,10 @@ dependencies:
   shared_preferences: any
   audioplayers: any
   path_provider: any
-  sensors_plus: any
+  sensors_plus: ^7.1.1
+  wakelock_plus: ^1.5.2
+  noor_ios_bridge:
+    path: packages/noor_ios_bridge
   share_plus: 10.1.4
   cached_network_image: any
   flutter_svg: any
