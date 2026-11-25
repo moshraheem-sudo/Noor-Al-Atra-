@@ -1568,7 +1568,7 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
             );
           },
         );
-      }).toList(),
+      }),
 
       const SizedBox(height: 16),
 

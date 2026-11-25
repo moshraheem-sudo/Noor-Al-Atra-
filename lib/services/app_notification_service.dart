@@ -796,7 +796,7 @@ class AppNotificationService {
           } else {
             // For non-Android platforms, schedule local notification with Stop action
             await _localNotifications.zonedSchedule(
-              id: 4001,
+              id: 4000 + uniquePrayerId,
               title: 'أذان $pName المبارك 🕌',
               body: 'حان الآن موعد صلاة $pName',
               scheduledDate: tz.TZDateTime.from(prayerDateTime, tz.local),
