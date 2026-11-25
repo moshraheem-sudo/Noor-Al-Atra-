@@ -269,7 +269,7 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
               index: 5,
               icon: Icons.record_voice_over_rounded,
               title: 'صوت الأذان',
-              subtitle: '${settings.selectedMuezzin} • مفعل تلقائياً',
+              subtitle: '${settings.selectedMuezzin} • يدعم تخصيص كل صلاة',
               content: _buildMuezzinContent(settings, colors),
               colors: colors,
             ),
@@ -1403,7 +1403,9 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
     final downloadService = MuezzinDownloadService();
 
     return Column(
-      children: muezzins.map((m) {
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ...muezzins.map((m) {
         final isSelected = settings.selectedMuezzin == m.name || settings.selectedMuezzin == m.id;
         final isPlaying = downloadService.isPlaying && downloadService.currentlyPlayingId == m.id;
         final isDownloading = downloadService.isMuezzinDownloading(m.id);
@@ -1567,6 +1569,360 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
           },
         );
       }).toList(),
+
+      const SizedBox(height: 16),
+
+      // Divider & Header for Custom Muezzin Per Prayer (اسفل الصوتيات الأساسية)
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.accent.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.accent.withOpacity(0.2)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.tune_rounded, color: colors.accent, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'تخصيص مؤذن لكل صلاة (متقدم)',
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: colors.accent,
+                    ),
+                  ),
+                  Text(
+                    'يمكنك اختيار مؤذن مختلف لكل فريضة (مثال: أسامة للفجر، عامر للظهر)',
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 10.5,
+                      color: colors.textSub,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+
+      // 5 Prayers customization list
+      ..._buildPerPrayerMuezzinTiles(settings, colors, muezzins, downloadService),
+    ],
+  );
+}
+
+  List<Widget> _buildPerPrayerMuezzinTiles(
+    SettingsController settings,
+    _PrayerSettingsColors colors,
+    List<MuezzinItem> muezzins,
+    MuezzinDownloadService downloadService,
+  ) {
+    final prayers = [
+      {'key': 'fajr', 'name': 'صلاة الفجر', 'icon': Icons.wb_twilight_rounded},
+      {'key': 'dhuhr', 'name': 'صلاة الظهر', 'icon': Icons.wb_sunny_rounded},
+      {'key': 'asr', 'name': 'صلاة العصر', 'icon': Icons.wb_cloudy_rounded},
+      {'key': 'maghrib', 'name': 'صلاة المغرب', 'icon': Icons.nights_stay_rounded},
+      {'key': 'isha', 'name': 'صلاة العشاء', 'icon': Icons.bedtime_rounded},
+    ];
+
+    return prayers.map((p) {
+      final pKey = p['key'] as String;
+      final pName = p['name'] as String;
+      final pIcon = p['icon'] as IconData;
+      final customMuezzin = settings.prayerMuezzins[pKey];
+      final isCustom = customMuezzin != null && customMuezzin.isNotEmpty && customMuezzin != 'default';
+      final activeMuezzin = isCustom ? customMuezzin : settings.selectedMuezzin;
+
+      // Find MuezzinItem for preview
+      final activeMuezzinItem = muezzins.firstWhere(
+        (m) => m.name == activeMuezzin || m.id == activeMuezzin,
+        orElse: () => muezzins.first,
+      );
+      final isPlaying = downloadService.isPlaying && downloadService.currentlyPlayingId == activeMuezzinItem.id;
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isCustom ? colors.selectedTileBg : colors.innerCardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isCustom ? colors.selectedTileBorder : colors.innerCardBorder,
+            width: isCustom ? 1.2 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Prayer Icon Box
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isCustom ? colors.accent.withOpacity(0.15) : colors.iconBoxBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(pIcon, color: isCustom ? colors.accent : colors.goldAccent, size: 20),
+            ),
+            const SizedBox(width: 10),
+
+            // Prayer and Selected Muezzin Info
+            Expanded(
+              child: InkWell(
+                onTap: () => _showPrayerMuezzinSelector(context, settings, colors, pKey, pName, muezzins),
+                borderRadius: BorderRadius.circular(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      pName,
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textTitle,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            isCustom ? activeMuezzin : 'المؤذن الافتراضي ($activeMuezzin)',
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 11,
+                              fontWeight: isCustom ? FontWeight.bold : FontWeight.normal,
+                              color: isCustom ? colors.accent : colors.textSub,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isCustom) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: colors.accent.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'مخصص',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: colors.accent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Play Preview Button
+            IconButton(
+              icon: Icon(
+                isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
+                color: isCustom ? colors.accent : colors.textSub,
+                size: 26,
+              ),
+              tooltip: 'استماع',
+              onPressed: () {
+                downloadService.playPreview(activeMuezzinItem, onStateChange: () {
+                  if (mounted) setState(() {});
+                });
+              },
+            ),
+
+            // Reset to Default button if custom
+            if (isCustom)
+              IconButton(
+                icon: Icon(Icons.refresh_rounded, color: colors.textSub, size: 20),
+                tooltip: 'إعادة للمؤذن الافتراضي',
+                onPressed: () {
+                  settings.setPrayerMuezzin(pKey, null);
+                },
+              ),
+
+            // Change Muezzin Button
+            IconButton(
+              icon: Icon(Icons.arrow_forward_ios_rounded, color: colors.arrowColor, size: 14),
+              onPressed: () => _showPrayerMuezzinSelector(context, settings, colors, pKey, pName, muezzins),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  void _showPrayerMuezzinSelector(
+    BuildContext context,
+    SettingsController settings,
+    _PrayerSettingsColors colors,
+    String prayerKey,
+    String prayerName,
+    List<MuezzinItem> muezzins,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final currentChoice = settings.prayerMuezzins[prayerKey] ?? 'default';
+
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle Bar
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: colors.divider,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Title
+                    Text(
+                      'اختر صوت الأذان لـ $prayerName',
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textTitle,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'اختر مؤذناً مخصصاً أو اعتمد الصوت الافتراضي العام',
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 11,
+                        color: colors.textSub,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Option 1: Default Muezzin
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: currentChoice == 'default' ? colors.selectedTileBg : colors.innerCardBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: currentChoice == 'default' ? colors.selectedTileBorder : colors.innerCardBorder,
+                        ),
+                      ),
+                      child: ListTile(
+                        dense: true,
+                        leading: Radio<String>(
+                          value: 'default',
+                          groupValue: currentChoice,
+                          activeColor: colors.accent,
+                          onChanged: (val) {
+                            settings.setPrayerMuezzin(prayerKey, null);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                        title: Text(
+                          'المؤذن الافتراضي العام',
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: currentChoice == 'default' ? colors.accent : colors.textTitle,
+                          ),
+                        ),
+                        subtitle: Text(
+                          settings.selectedMuezzin,
+                          style: TextStyle(fontFamily: 'Cairo', fontSize: 11, color: colors.textSub),
+                        ),
+                        onTap: () {
+                          settings.setPrayerMuezzin(prayerKey, null);
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                    ),
+
+                    // Options: Specific Muezzins
+                    ...muezzins.map((m) {
+                      final isSelected = currentChoice == m.name || currentChoice == m.id;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? colors.selectedTileBg : colors.innerCardBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? colors.selectedTileBorder : colors.innerCardBorder,
+                          ),
+                        ),
+                        child: ListTile(
+                          dense: true,
+                          leading: Radio<String>(
+                            value: m.name,
+                            groupValue: currentChoice,
+                            activeColor: colors.accent,
+                            onChanged: (val) {
+                              settings.setPrayerMuezzin(prayerKey, val);
+                              Navigator.pop(ctx);
+                            },
+                          ),
+                          title: Text(
+                            m.name,
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                              fontSize: 13,
+                              color: isSelected ? colors.accent : colors.textTitle,
+                            ),
+                          ),
+                          subtitle: Text(
+                            m.title,
+                            style: TextStyle(fontFamily: 'Cairo', fontSize: 10.5, color: colors.textSub),
+                          ),
+                          trailing: Text(
+                            m.durationText,
+                            style: TextStyle(fontFamily: 'Cairo', fontSize: 10, color: colors.textSub),
+                          ),
+                          onTap: () {
+                            settings.setPrayerMuezzin(prayerKey, m.name);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

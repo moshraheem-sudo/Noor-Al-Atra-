@@ -32,6 +32,13 @@ class SettingsController extends ChangeNotifier {
   bool _notifyMaghrib = true;
   bool _notifyIsha = true;
   String _selectedMuezzin = 'الحاج عامر الكاظمي';
+  final Map<String, String?> _prayerMuezzins = {
+    'fajr': null,
+    'dhuhr': null,
+    'asr': null,
+    'maghrib': null,
+    'isha': null,
+  };
   String _calculationMethod = 'kafeel'; // kafeel, tehran, lewa_qom, lewa_haqq
   String _midnightMethod = 'fajr'; // fajr (إلى الفجر), sunrise (إلى الشروق)
 
@@ -101,6 +108,29 @@ class SettingsController extends ChangeNotifier {
   bool get notifyMaghrib => _notifyMaghrib;
   bool get notifyIsha => _notifyIsha;
   String get selectedMuezzin => _selectedMuezzin;
+  Map<String, String?> get prayerMuezzins => _prayerMuezzins;
+
+  /// Returns the customized muezzin for a specific prayer, or falls back to _selectedMuezzin
+  String getMuezzinForPrayer(String prayerKeyOrName) {
+    String key = prayerKeyOrName.toLowerCase().trim();
+    if (key.contains('فجر') || key == 'fajr') {
+      key = 'fajr';
+    } else if (key.contains('ظهر') || key == 'dhuhr') {
+      key = 'dhuhr';
+    } else if (key.contains('عصر') || key == 'asr') {
+      key = 'asr';
+    } else if (key.contains('مغرب') || key == 'maghrib') {
+      key = 'maghrib';
+    } else if (key.contains('عشاء') || key == 'isha') {
+      key = 'isha';
+    }
+
+    final custom = _prayerMuezzins[key];
+    if (custom != null && custom.trim().isNotEmpty && custom != 'default') {
+      return custom.trim();
+    }
+    return _selectedMuezzin;
+  }
   String get calculationMethod => _calculationMethod;
   String get midnightMethod => _midnightMethod;
   Map<String, String> get prayerAlertTypes => _prayerAlertTypes;
@@ -142,6 +172,10 @@ class SettingsController extends ChangeNotifier {
     _notifyMaghrib = _prefs!.getBool('settings_notify_maghrib') ?? true;
     _notifyIsha = _prefs!.getBool('settings_notify_isha') ?? true;
     _selectedMuezzin = _prefs!.getString('settings_selected_muezzin') ?? 'الحاج عامر الكاظمي';
+    for (final key in ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']) {
+      final saved = _prefs!.getString('settings_muezzin_$key');
+      _prayerMuezzins[key] = (saved != null && saved.isNotEmpty && saved != 'default') ? saved : null;
+    }
     _calculationMethod = _prefs!.getString('settings_calc_method') ?? 'kafeel';
     _midnightMethod = _prefs!.getString('settings_midnight_method') ?? 'fajr';
 
@@ -294,6 +328,18 @@ class SettingsController extends ChangeNotifier {
   Future<void> setSelectedMuezzin(String val) async {
     _selectedMuezzin = val;
     await _prefs?.setString('settings_selected_muezzin', val);
+    notifyListeners();
+  }
+
+  Future<void> setPrayerMuezzin(String prayerKey, String? muezzinName) async {
+    final key = prayerKey.toLowerCase().trim();
+    if (muezzinName == null || muezzinName.isEmpty || muezzinName == 'default') {
+      _prayerMuezzins[key] = null;
+      await _prefs?.remove('settings_muezzin_$key');
+    } else {
+      _prayerMuezzins[key] = muezzinName;
+      await _prefs?.setString('settings_muezzin_$key', muezzinName);
+    }
     notifyListeners();
   }
 

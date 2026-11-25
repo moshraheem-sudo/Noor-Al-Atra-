@@ -779,7 +779,7 @@ class AppNotificationService {
         try {
           // Native Exact Alarm (Plays the Holy Adhan audio forcefully via AlarmManager & MediaPlayer Foreground Service)
           if (Platform.isAndroid) {
-            final muezzinName = settings.selectedMuezzin;
+            final muezzinName = settings.getMuezzinForPrayer(p['key'] as String);
             final muezzin = MuezzinDownloadService.muezzins.firstWhere(
               (m) => m.id == muezzinName || m.name == muezzinName,
               orElse: () => MuezzinDownloadService.muezzins.first,

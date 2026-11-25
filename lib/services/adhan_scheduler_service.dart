@@ -212,7 +212,7 @@ class AdhanSchedulerService {
         if (pKey != 'sunrise') {
           ProximityWakeLockService().isAdhanPlaying().then((playing) {
             if (!playing) {
-              playAdhan(prayerName: pName, muezzinId: settings.selectedMuezzin);
+              playAdhan(prayerName: pName, muezzinId: settings.getMuezzinForPrayer(pKey));
             }
           });
         }
@@ -249,7 +249,7 @@ class AdhanSchedulerService {
       isVolumeLoweredNotifier.value = false;
       currentAdhanPrayerNotifier.value = prayerName;
 
-      final targetMuezzinId = muezzinId ?? _getStoredMuezzinId();
+      final targetMuezzinId = muezzinId ?? _getStoredMuezzinId(prayerName: prayerName);
       final muezzin = MuezzinDownloadService.muezzins.firstWhere(
         (m) => m.id == targetMuezzinId || m.name == targetMuezzinId,
         orElse: () => MuezzinDownloadService.muezzins.first,
@@ -322,8 +322,10 @@ class AdhanSchedulerService {
     }
   }
 
-  String _getStoredMuezzinId() {
-    final name = SettingsController().selectedMuezzin;
+  String _getStoredMuezzinId({String? prayerName}) {
+    final name = prayerName != null
+        ? SettingsController().getMuezzinForPrayer(prayerName)
+        : SettingsController().selectedMuezzin;
     for (final m in MuezzinDownloadService.muezzins) {
       if (m.name == name || m.id == name) return m.id;
     }
