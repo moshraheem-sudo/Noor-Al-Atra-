@@ -280,13 +280,13 @@ class _QuranSettingsSheetState extends State<QuranSettingsSheet> {
 
               const SizedBox(height: 10),
 
-              // 6. Download Full Surah MP3 Card
+              // 6. Download Full Surah (Text + Audio) Offline Card
               _settingsTile(
                 isDark: isDark,
                 icon: Icons.cloud_download_outlined,
                 iconColor: const Color(0xFF059669),
-                title: 'تحميل صوت كامل للسورة (MP3)',
-                subtitle: 'حفظ تلاوة سورة ${widget.currentChapter.nameArabic} للاستماع أوفلاين',
+                title: 'تحميل السورة بدون إنترنت',
+                subtitle: 'تحميل نص سورة ${widget.currentChapter.nameArabic} والصوت معاً للتشغيل والتمرير',
                 trailingWidget: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Color(0xFF059669)),
                 onTap: () {
                   Navigator.pop(context);

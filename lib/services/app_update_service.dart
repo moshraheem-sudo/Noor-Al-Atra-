@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_notification_service.dart';
 
 class AppUpdateService {
-  static const String currentVersion = '5.76.0';
+  static const String currentVersion = '5.77.0';
 
   // 1️⃣ مستودع التحديثات الرئيسي لتطبيق نور العترة
   static const String primaryRepoUrl = 'https://github.com/moshraheem-sudo/Noor-Al-Atra-';
@@ -827,9 +827,11 @@ class AppUpdateService {
     String downloadUrl,
     String releasePageUrl,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
         contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
@@ -838,23 +840,36 @@ class AppUpdateService {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+                color: const Color(0xFF059669).withValues(alpha: isDark ? 0.2 : 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.system_update_rounded, color: Color(0xFF1B5E20), size: 28),
+              child: Icon(
+                Icons.system_update_rounded,
+                color: isDark ? const Color(0xFF34D399) : const Color(0xFF1B5E20),
+                size: 28,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'تحديث جديد متاح!',
-                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1B3A57)),
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: isDark ? Colors.white : const Color(0xFF1B3A57),
+                    ),
                   ),
                   Text(
                     'الإصدار $newVersion (الإصدار الحالي: $currentVersion)',
-                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.grey),
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 12,
+                      color: isDark ? Colors.white70 : Colors.grey,
+                    ),
                   ),
                 ],
               ),
@@ -865,23 +880,36 @@ class AppUpdateService {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'سجل التغييرات والتحسينات:',
-              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1B3A57)),
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF1B3A57),
+              ),
             ),
             const SizedBox(height: 8),
             Container(
               constraints: const BoxConstraints(maxHeight: 180),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
               ),
               child: SingleChildScrollView(
                 child: Text(
                   changelog,
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, height: 1.6, color: Color(0xFF334155)),
+                  textAlign: TextAlign.justify,
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 12,
+                    height: 1.6,
+                    color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF334155),
+                  ),
                 ),
               ),
             ),

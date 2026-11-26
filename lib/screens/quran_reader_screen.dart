@@ -1836,8 +1836,8 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
 
                   // 3. زر فهرس السور أو قائمة الأجزاء (بحسب وضع الختمة)
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                       shape: BoxShape.circle,
@@ -1845,7 +1845,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                     child: IconButton(
                       icon: Icon(
                         widget.isKhatmaActive ? Icons.auto_stories_rounded : Icons.menu_book_rounded,
-                        size: 19,
+                        size: 18,
                         color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB),
                       ),
                       padding: EdgeInsets.zero,
@@ -1857,12 +1857,12 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                     ),
                   ),
 
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
 
                   // 4. Unified Settings Button (⚙)
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                       shape: BoxShape.circle,
@@ -1870,7 +1870,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                     child: IconButton(
                       icon: Icon(
                         Icons.settings_outlined,
-                        size: 19,
+                        size: 18,
                         color: isDark ? Colors.white70 : const Color(0xFF1E293B),
                       ),
                       padding: EdgeInsets.zero,
@@ -1880,12 +1880,12 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                     ),
                   ),
 
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
 
-                  // 5. زر تشغيل الصوت والتلاوة واختيار القارئ
+                  // 5. زر السماعة: اختيار القارئ وخيارات التلاوة
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
                       color: _isContinuousReciting
                           ? const Color(0xFFD4AF37).withValues(alpha: 0.2)
@@ -1893,52 +1893,102 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: _isContinuousReciting ? const Color(0xFFD4AF37) : Colors.transparent,
-                        width: 1.5,
+                        width: 1.4,
                       ),
                     ),
                     child: IconButton(
                       icon: Icon(
                         _isContinuousReciting ? Icons.volume_up_rounded : Icons.headphones_rounded,
-                        size: 19,
+                        size: 18,
                         color: _isContinuousReciting ? const Color(0xFFD4AF37) : (isDark ? Colors.white70 : const Color(0xFF1E293B)),
                       ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      tooltip: 'تشغيل الصوت واختيار القارئ',
+                      tooltip: 'اختيار القارئ والصوت',
                       onPressed: () => _showAudioRecitationSheet(context, quran),
                     ),
                   ),
 
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
 
-                  // زر إيقاف الصوت الدائم أثناء القراءة والتمرير عند تشغيل أي صوت
-                  if (AudioPlayerService().isPlaying || _isContinuousReciting || _activeRecitingAyah != null) ...[
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.16),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.redAccent.withValues(alpha: 0.75),
-                          width: 1.4,
-                        ),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.stop_rounded, size: 20),
-                        color: Colors.redAccent,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'إيقاف الصوت',
-                        onPressed: () {
-                          _stopContinuousRecitation();
-                          AudioPlayerService().stop();
-                          setState(() {});
-                        },
+                  // 6. زر تشغيل الصوت والتمرير بزر واحد مباشرة
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: (_isContinuousReciting && AudioPlayerService().isPlaying)
+                          ? const Color(0xFF059669).withValues(alpha: 0.22)
+                          : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: (_isContinuousReciting && AudioPlayerService().isPlaying)
+                            ? const Color(0xFF059669)
+                            : Colors.transparent,
+                        width: 1.4,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                  ],
+                    child: IconButton(
+                      icon: Icon(
+                        (_isContinuousReciting && AudioPlayerService().isPlaying)
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        size: 20,
+                        color: (_isContinuousReciting && AudioPlayerService().isPlaying)
+                            ? const Color(0xFF10B981)
+                            : (isDark ? const Color(0xFF34D399) : const Color(0xFF059669)),
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: (_isContinuousReciting && AudioPlayerService().isPlaying)
+                          ? 'إيقاف مؤقت للتلاوة'
+                          : 'تشغيل الصوت والتمرير',
+                      onPressed: () {
+                        final audio = AudioPlayerService();
+                        if (_isContinuousReciting && audio.currentSurahId == _currentChapter.id) {
+                          audio.togglePlayPause();
+                          setState(() {});
+                        } else {
+                          _playAyahDirect(_activeRecitingAyah ?? _selectedAyahNum ?? 1, continuous: true);
+                        }
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(width: 5),
+
+                  // 7. زر إيقاف الصوت بقرب زر التشغيل والتمرير
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: (AudioPlayerService().isPlaying || _isContinuousReciting || _activeRecitingAyah != null)
+                          ? Colors.redAccent.withValues(alpha: 0.18)
+                          : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: (AudioPlayerService().isPlaying || _isContinuousReciting || _activeRecitingAyah != null)
+                            ? Colors.redAccent.withValues(alpha: 0.75)
+                            : Colors.transparent,
+                        width: 1.4,
+                      ),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.stop_rounded, size: 19),
+                      color: (AudioPlayerService().isPlaying || _isContinuousReciting || _activeRecitingAyah != null)
+                          ? Colors.redAccent
+                          : (isDark ? Colors.white38 : Colors.black38),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'إيقاف الصوت',
+                      onPressed: () {
+                        _stopContinuousRecitation();
+                        AudioPlayerService().stop();
+                        setState(() {});
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(width: 5),
 
                   // 6. Chevron (<) on far left - الانتقال للسورة التالية
                   Container(
