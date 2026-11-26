@@ -13,6 +13,7 @@ import 'rakaat_counter_screen.dart';
 import 'qibla_compass_screen.dart';
 import 'ramadan_imsakiya_screen.dart';
 import 'wallpapers_screen.dart';
+import '../features/sharia_inquiries/screens/sharia_search_screen.dart';
 
 class WorshipGridItem {
   final String title;
@@ -228,6 +229,13 @@ class _WorshipScreenState extends State<WorshipScreen> {
       assetPath: 'assets/images/worship/wallpapers.png',
       fallbackIcon: Icons.wallpaper_rounded,
       screenBuilder: (_) => const WallpapersScreen(),
+    ),
+    // 18. المجيب للاستفتاءات الشرعية
+    WorshipGridItem(
+      title: 'المجيب',
+      assetPath: '',
+      fallbackIcon: Icons.question_answer_rounded,
+      screenBuilder: (_) => const ShariaSearchScreen(),
     ),
   ];
 
@@ -724,19 +732,41 @@ class _WorshipScreenState extends State<WorshipScreen> {
                 color: isDark ? const Color(0xFF16202C) : Colors.white,
               ),
               child: ClipOval(
-                child: Image.asset(
-                  item.assetPath,
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Center(
-                    child: Icon(
-                      item.fallbackIcon,
-                      size: 28,
-                      color: isDark ? Colors.white70 : const Color(0xFF1B3A57),
-                    ),
-                  ),
-                ),
+                child: item.assetPath.isEmpty
+                    ? Center(
+                        child: Container(
+                          width: double.infinity,
+                          height: double.infinity,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomLeft,
+                              colors: isDark
+                                  ? const [Color(0xFF064E3B), Color(0xFF0F172A)]
+                                  : const [Color(0xFFE0F2FE), Color(0xFFF0FDF4)],
+                            ),
+                          ),
+                          child: Icon(
+                            item.fallbackIcon,
+                            size: 28,
+                            color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF1B3A57),
+                          ),
+                        ),
+                      )
+                    : Image.asset(
+                        item.assetPath,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Center(
+                          child: Icon(
+                            item.fallbackIcon,
+                            size: 28,
+                            color: isDark ? Colors.white70 : const Color(0xFF1B3A57),
+                          ),
+                        ),
+                      ),
               ),
             ),
           ),
