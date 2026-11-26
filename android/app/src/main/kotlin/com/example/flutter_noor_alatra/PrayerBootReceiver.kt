@@ -6,6 +6,11 @@ import android.content.Intent
 
 class PrayerBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED,
+            "android.intent.action.QUICKBOOT_POWERON", "com.htc.intent.action.QUICKBOOT_POWERON" -> Unit
+            else -> return
+        }
         val prefs = context.getSharedPreferences("noor_alatra_prayer_times", Context.MODE_PRIVATE)
         val isActive = prefs.getBoolean("is_active", true)
         if (isActive) {

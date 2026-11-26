@@ -416,15 +416,34 @@ class AppUpdateService {
               client = http.Client();
               Future.microtask(() async {
                 try {
-                  final tempDir = await getTemporaryDirectory();
-                  final rawName = downloadUrl.split('/').last.split('?').first;
+                  final uri = Uri.parse(downloadUrl);
+                  const updateRepos = {
+                    'noor-al-atra-', 'myapp-updates', 'sawt-al-quran-', 'prayer-times',
+                  };
+                  final segments = uri.pathSegments;
+                  if (uri.scheme != 'https' ||
+                      uri.host != 'github.com' ||
+                      uri.userInfo.isNotEmpty ||
+                      uri.hasPort ||
+                      segments.length != 6 ||
+                      segments[0].toLowerCase() != 'moshraheem-sudo' ||
+                      !updateRepos.contains(segments[1].toLowerCase()) ||
+                      segments[2] != 'releases' ||
+                      segments[3] != 'download' ||
+                      !RegExp(r'^[a-zA-Z0-9_.-]+\.apk$', caseSensitive: false)
+                          .hasMatch(segments[5])) {
+                    throw const FormatException('Invalid update URL');
+                  }
+                  final cacheDir = await getTemporaryDirectory();
+                  final tempDir = await Directory('${cacheDir.path}/apk-updates').create(recursive: true);
+                  final rawName = segments[5];
                   final fileName = rawName.endsWith('.apk') ? rawName : 'downloaded_app.apk';
                   final file = File('${tempDir.path}/$fileName');
                   if (await file.exists()) {
                     await file.delete();
                   }
 
-                  final req = http.Request('GET', Uri.parse(downloadUrl));
+                  final req = http.Request('GET', uri);
                   final streamedRes = await client!.send(req).timeout(const Duration(minutes: 5));
 
                   if (streamedRes.statusCode == 200) {

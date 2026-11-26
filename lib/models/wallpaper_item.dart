@@ -29,23 +29,37 @@ class WallpaperItem {
     this.fileSize,
   });
 
+  static Uri? httpsUri(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty &&
+        uri.userInfo.isEmpty ? uri : null;
+  }
+
+  static String _imageUrl(String value) {
+    if (value.startsWith('assets/') && !value.contains('..')) return value;
+    return httpsUri(value)?.toString() ?? '';
+  }
+
   factory WallpaperItem.fromJson(Map<String, dynamic> json) {
     final rawImg = (json['image_url'] ?? json['imageUrl'] ?? '').toString();
     final rawThumb = (json['thumbnail_url'] ?? json['thumbnailUrl'] ?? rawImg).toString();
     final rawSource = (json['source_name'] ?? json['sourceName'] ?? 'العتبات المقدسة').toString();
     final rawSourceUrl = (json['source_page'] ?? json['source_url'] ?? json['sourceUrl'] ?? json['original_url'] ?? '').toString();
 
+    final image = _imageUrl(rawImg);
+    final thumbnail = _imageUrl(rawThumb);
+
     return WallpaperItem(
       id: (json['id'] ?? '').toString(),
       title: (json['title'] ?? 'خلفية دينية').toString(),
       category: (json['category'] ?? 'عام').toString(),
       shrine: json['shrine']?.toString(),
-      imageUrl: rawImg,
-      thumbnailUrl: rawThumb.isNotEmpty ? rawThumb : rawImg,
+      imageUrl: image,
+      thumbnailUrl: thumbnail.isNotEmpty ? thumbnail : image,
       sourceName: rawSource,
-      sourceUrl: rawSourceUrl,
-      tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
-      isFeatured: json['isFeatured'] as bool? ?? false,
+      sourceUrl: httpsUri(rawSourceUrl)?.toString() ?? "",
+      tags: json['tags'] is List ? (json['tags'] as List).map((e) => e.toString()).toList() : const [],
+      isFeatured: json['isFeatured'] == true,
       width: json['width'] is int ? json['width'] as int : int.tryParse(json['width']?.toString() ?? ''),
       height: json['height'] is int ? json['height'] as int : int.tryParse(json['height']?.toString() ?? ''),
       fileSize: json['file_size'] is int ? json['file_size'] as int : int.tryParse(json['file_size']?.toString() ?? ''),

@@ -132,34 +132,43 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
   }
 
   Future<void> _loadData({bool forceRefresh = false}) async {
+    if (_isRefreshing) return;
     if (forceRefresh) {
       setState(() => _isRefreshing = true);
     } else {
       setState(() => _isLoading = true);
     }
 
-    final items = await _wallpaperService.loadWallpapers(forceRefresh: forceRefresh);
-
-    if (mounted) {
+    final updated = forceRefresh ? await _wallpaperService.checkForRemoteUpdates(force: true) : null;
+    final items = forceRefresh
+        ? updated ?? _allWallpapers
+        : await _wallpaperService.loadWallpapers();
+    if (!mounted) return;
+    setState(() {
+      _allWallpapers = items;
+      _isLoading = false;
+      _isRefreshing = false;
+      _applyFilters();
+    });
+    if (forceRefresh) {
+      final success = updated != null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'تم تحديث الخلفيات (${items.length})' : 'تعذر تحديث الخلفيات. حاول مجدداً.',
+            style: const TextStyle(fontFamily: 'Cairo'),
+          ),
+          backgroundColor: success ? const Color(0xFF059669) : Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      final remote = await _wallpaperService.checkForRemoteUpdates();
+      if (!mounted || _isRefreshing || remote == null || identical(items, remote)) return;
       setState(() {
-        _allWallpapers = items;
-        _isLoading = false;
-        _isRefreshing = false;
+        _allWallpapers = remote;
         _applyFilters();
       });
-      if (forceRefresh) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'تم تحديث الخلفيات بنجاح (${items.length} خلفية)',
-              style: const TextStyle(fontFamily: 'Cairo'),
-            ),
-            backgroundColor: const Color(0xFF059669),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
     }
   }
 
@@ -188,10 +197,8 @@ class _WallpapersScreenState extends State<WallpapersScreen> {
       }).toList();
     }
 
-    setState(() {
-      _filteredWallpapers = result;
-      _displayedCount = 50;
-    });
+    _filteredWallpapers = result;
+    _displayedCount = 50;
   }
 
   void _onCategorySelected(String category) {
@@ -478,7 +485,7 @@ class _WallpaperCard extends StatelessWidget {
               errorWidget: (context, url, error) {
                 final full = item.imageUrl;
                 final thumb = item.thumbnailUrl;
-                if (full.isNotEmpty && full != thumb && full.startsWith('http')) {
+                if (full.isNotEmpty && full != thumb && WallpaperItem.httpsUri(full) != null) {
                   return CachedNetworkImage(
                     imageUrl: full,
                     httpHeaders: const {'User-Agent': 'NoorAlAtra/1.0'},
@@ -625,24 +632,6 @@ class _FullscreenWallpaperViewer extends StatefulWidget {
 class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> {
   final WallpaperService _wallpaperService = WallpaperService();
   bool _isProcessing = false;
-  File? _downloadedFile;
-
-  @override
-  void initState() {
-    super.initState();
-    _prepareLocalFile();
-  }
-
-  Future<void> _prepareLocalFile() async {
-    final file = await _wallpaperService.downloadWallpaperFile(
-      widget.item.imageUrl,
-      widget.item.id,
-    );
-    if (mounted) {
-      setState(() => _downloadedFile = file);
-    }
-  }
-
   Future<void> _setWallpaperDialog() async {
     final bottomInset = MediaQuery.of(context).viewPadding.bottom;
     showModalBottomSheet(
@@ -795,26 +784,25 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
   }
 
   Future<void> _applyWallpaper(String target) async {
+    if (!mounted || _isProcessing) return;
     setState(() => _isProcessing = true);
 
     try {
-      final file = _downloadedFile ??
-          await _wallpaperService.downloadWallpaperFile(widget.item.imageUrl, widget.item.id);
+      final file = await _wallpaperService.downloadWallpaperFile(widget.item.imageUrl, widget.item.id);
 
-      if (file != null && file.existsSync()) {
+      if (!mounted) return;
+      if (file != null) {
         final success = await _wallpaperService.applyDeviceWallpaper(file: file, target: target);
         if (mounted) {
-          if (!success && Platform.isIOS) {
-            _showPermissionRequiredDialog();
-          } else {
-            final String msg = Platform.isIOS
-                ? 'تم حفظ الصورة في ألبوم الصور بنجاح، يمكنك الآن تعيينها كخلفية من إعدادات iOS ✨'
-                : (success
-                    ? 'تم تعيين الخلفية بنجاح على جهازك المبارك ✨'
-                    : 'تعذر تعيين الخلفية، يرجى المحاولة ثانية');
-            _showFloatingSnackBar(msg, isSuccess: success);
-          }
+          final message = !success
+              ? 'تعذر تعيين الخلفية. حاول مجدداً.'
+              : Platform.isIOS
+                  ? 'تم حفظ الصورة. يمكنك تعيينها خلفيةً من إعدادات iPhone.'
+                  : 'تم تعيين الخلفية بنجاح.';
+          _showFloatingSnackBar(message, isSuccess: success);
         }
+      } else {
+        _showFloatingSnackBar('تعذر تنزيل الصورة. حاول مجدداً.', isSuccess: false);
       }
     } on PlatformException catch (e) {
       if (e.code == 'PHOTOS_DENIED') {
@@ -830,6 +818,7 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
   }
 
   Future<void> _downloadToGallery() async {
+    if (!mounted || _isProcessing) return;
     setState(() => _isProcessing = true);
     try {
       final savedPath = await _wallpaperService.saveWallpaperToGallery(
@@ -841,7 +830,7 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
         if (savedPath != null) {
           _showFloatingSnackBar('تم حفظ الصورة بنجاح في معرض الصور الخاص بك 📥✨');
         } else {
-          _showPermissionRequiredDialog();
+          _showFloatingSnackBar('تعذر حفظ الصورة. حاول مجدداً.', isSuccess: false);
         }
       }
     } on PlatformException catch (e) {
@@ -858,27 +847,32 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
   }
 
   Future<void> _shareWallpaper() async {
+    if (!mounted || _isProcessing) return;
+    setState(() => _isProcessing = true);
     try {
-      final file = _downloadedFile ??
-          await _wallpaperService.downloadWallpaperFile(widget.item.imageUrl, widget.item.id);
-      if (file != null) {
+      final file = await _wallpaperService.downloadWallpaperFile(widget.item.imageUrl, widget.item.id);
+      if (!mounted) return;
+      if (file == null) {
+        _showFloatingSnackBar('تعذر تنزيل الصورة للمشاركة.', isSuccess: false);
+      } else {
+        final box = context.findRenderObject() as RenderBox?;
         await Share.shareXFiles(
           [XFile(file.path)],
           text: '${widget.item.title}\nمن تطبيق نور العترة 🕊️\nالمصدر: ${widget.item.sourceName}',
+          sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
         );
       }
     } catch (e) {
       debugPrint('Error sharing wallpaper: $e');
+      if (mounted) _showFloatingSnackBar('تعذرت مشاركة الصورة.', isSuccess: false);
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
   Future<void> _openSourceUrl() async {
-    if (widget.item.sourceUrl.isNotEmpty) {
-      final uri = Uri.parse(widget.item.sourceUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-    }
+    final uri = WallpaperItem.httpsUri(widget.item.sourceUrl);
+    if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -893,11 +887,14 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
             child: InteractiveViewer(
               minScale: 1.0,
               maxScale: 4.0,
-              child: widget.item.imageUrl.startsWith('http')
+              child: WallpaperItem.httpsUri(widget.item.imageUrl) != null
                   ? CachedNetworkImage(
                       imageUrl: widget.item.imageUrl,
                       httpHeaders: const {'User-Agent': 'NoorAlAtra/1.0'},
                       fit: BoxFit.contain,
+                      memCacheWidth: (MediaQuery.sizeOf(context).width *
+                              MediaQuery.devicePixelRatioOf(context) * 1.5)
+                          .round().clamp(1, 2048),
                       placeholder: (context, url) => const Center(
                         child: SizedBox(
                           width: 36,

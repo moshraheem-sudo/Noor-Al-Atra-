@@ -73,4 +73,31 @@ void main() {
       'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/shrines.json',
     );
   });
+
+  test('WallpaperItem ignores insecure media and external action URLs', () {
+    final item = WallpaperItem.fromJson({
+      'id': 'test',
+      'image_url': 'https://example.com/wallpaper.webp',
+      'thumbnail_url': 'http://example.com/wallpaper.webp',
+      'source_url': 'intent://other-app',
+      'tags': 'invalid',
+    });
+
+    expect(item.thumbnailUrl, item.imageUrl);
+    expect(item.sourceUrl, isEmpty);
+    expect(item.tags, isEmpty);
+    expect(WallpaperItem.httpsUri('https://example.com@other.example'), isNull);
+  });
+
+  test('WallpaperService rejects unsafe downloads before accessing storage', () async {
+    final service = WallpaperService();
+    expect(
+      await service.downloadWallpaperFile('https://example.com/image.jpg', '../test'),
+      isNull,
+    );
+    expect(
+      await service.downloadWallpaperFile('http://example.com/image.jpg', 'test'),
+      isNull,
+    );
+  });
 }

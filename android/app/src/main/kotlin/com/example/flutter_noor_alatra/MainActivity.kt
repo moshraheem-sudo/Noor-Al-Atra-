@@ -1,6 +1,13 @@
 package com.example.flutter_noor_alatra
 
+import android.Manifest
+import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
+import android.media.MediaScannerConnection
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.File
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -17,7 +24,6 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.widget.RemoteViews
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.app.Activity
 import android.app.WallpaperManager
@@ -38,6 +44,74 @@ class MainActivity : FlutterActivity() {
 
     private val SPEECH_REQUEST_CODE = 7788
     private var pendingSpeechResult: MethodChannel.Result? = null
+
+    private val galleryPermissionRequest = 7789
+    private var pendingGallerySave: Pair<File, MethodChannel.Result>? = null
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != galleryPermissionRequest) return
+        val (file, result) = pendingGallerySave ?: return
+        pendingGallerySave = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            saveWallpaperToGallery(file, result)
+        } else {
+            result.error("PHOTOS_DENIED", "Photo storage permission denied", null)
+        }
+    }
+
+    private fun saveWallpaperToGallery(file: File, result: MethodChannel.Result) {
+        Thread {
+            val mime = when (file.extension.lowercase()) {
+                "png" -> "image/png"
+                "jpg", "jpeg" -> "image/jpeg"
+                else -> "image/webp"
+            }
+            val name = "NoorAlAtra_${file.nameWithoutExtension}_${System.currentTimeMillis()}.${file.extension}"
+            try {
+                val savedPath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val values = ContentValues().apply {
+                        put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                        put(MediaStore.Images.Media.MIME_TYPE, mime)
+                        put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/NoorAlAtra")
+                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                    }
+                    val uri = checkNotNull(contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values))
+                    try {
+                        checkNotNull(contentResolver.openOutputStream(uri)).use { output ->
+                            file.inputStream().use { input -> input.copyTo(output) }
+                        }
+                        values.clear()
+                        values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                        check(contentResolver.update(uri, values, null, null) == 1)
+                        uri.toString()
+                    } catch (error: Exception) {
+                        contentResolver.delete(uri, null, null)
+                        throw error
+                    }
+                } else {
+                    val folder = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "NoorAlAtra")
+                    check(folder.isDirectory || folder.mkdirs())
+                    val target = File(folder, name)
+                    try {
+                        file.copyTo(target)
+                    } catch (error: Exception) {
+                        target.delete()
+                        throw error
+                    }
+                    MediaScannerConnection.scanFile(applicationContext, arrayOf(target.absolutePath), arrayOf(mime), null)
+                    target.absolutePath
+                }
+                runOnUiThread { result.success(savedPath) }
+            } catch (error: Exception) {
+                runOnUiThread { result.error("GALLERY_SAVE_FAILED", error.localizedMessage, null) }
+            }
+        }.start()
+    }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -118,37 +192,45 @@ class MainActivity : FlutterActivity() {
                         result.error("SPEECH_NOT_AVAILABLE", e.localizedMessage, null)
                     }
                 }
-                "setDeviceWallpaper" -> {
-                    val filePath = call.argument<String>("filePath")
-                    val target = call.argument<String>("target") ?: "both" // "home", "lock", "both"
-                    if (filePath != null) {
-                        val file = java.io.File(filePath)
-                        if (file.exists()) {
-                            try {
-                                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-                                if (bitmap != null) {
-                                    val wm = WallpaperManager.getInstance(applicationContext)
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                        when (target) {
-                                            "home" -> wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
-                                            "lock" -> wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
-                                            else -> wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK)
-                                        }
-                                    } else {
-                                        wm.setBitmap(bitmap)
-                                    }
-                                    result.success(true)
-                                } else {
-                                    result.error("DECODE_ERROR", "Failed to decode image bitmap", null)
-                                }
-                            } catch (e: Exception) {
-                                result.error("WALLPAPER_ERROR", e.localizedMessage, null)
+                "saveWallpaperToGallery", "setDeviceWallpaper" -> {
+                    val file = call.argument<String>("filePath")?.let(::File)
+                    if (file == null || !file.isFile) {
+                        result.error("FILE_NOT_FOUND", "Wallpaper file is unavailable", null)
+                    } else if (call.method == "saveWallpaperToGallery") {
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                            checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            if (pendingGallerySave != null) {
+                                result.error("GALLERY_BUSY", "Photo permission request is already active", null)
+                            } else {
+                                pendingGallerySave = file to result
+                                requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), galleryPermissionRequest)
                             }
                         } else {
-                            result.error("FILE_NOT_FOUND", "File not found: $filePath", null)
+                            saveWallpaperToGallery(file, result)
                         }
                     } else {
-                        result.error("INVALID_PATH", "filePath is null", null)
+                        val target = call.argument<String>("target")
+                        Thread {
+                            try {
+                                val manager = WallpaperManager.getInstance(applicationContext)
+                                file.inputStream().use { input ->
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                        val flags = when (target) {
+                                            "home" -> WallpaperManager.FLAG_SYSTEM
+                                            "lock" -> WallpaperManager.FLAG_LOCK
+                                            else -> WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
+                                        }
+                                        manager.setStream(input, null, false, flags)
+                                    } else {
+                                        manager.setStream(input)
+                                    }
+                                }
+                                runOnUiThread { result.success(true) }
+                            } catch (error: Exception) {
+                                runOnUiThread { result.error("WALLPAPER_ERROR", error.localizedMessage, null) }
+                            }
+                        }.start()
                     }
                 }
                 "cancelQuranNotification" -> {

@@ -40,16 +40,12 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>يستخدم التطبيق التعرف على الصوت لتحويل صوتك إلى نص للبحث المباشر.</string>
 	<!-- Photo Library Permissions for Wallpapers -->
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>يحتاج التطبيق إلى الوصول لمكتبة الصور لحفظ خلفيات العتبات والمراقد المقدسة بدقة 4K في جهازك.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>يحتاج التطبيق إلى إذن إضافة الصور لحفظ خلفيات العتبات المباركة في ألبوم صور هاتفك.</string>
 	<!-- Background Modes for Adhan & Audio playback -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
-		<string>fetch</string>
-		<string>remote-notification</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

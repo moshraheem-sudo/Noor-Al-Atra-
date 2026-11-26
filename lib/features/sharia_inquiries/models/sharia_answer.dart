@@ -21,25 +21,7 @@ class ShariaAnswer {
     this.createdAt,
   });
 
-  /// Parses normalized response from Supabase `sharia-search` Edge Function.
-  factory ShariaAnswer.fromJson(Map<String, dynamic> json) {
-    final title = (json['title'] as String?)?.trim() ?? '';
-    final question = (json['question'] as String?)?.trim() ?? '';
-    return ShariaAnswer(
-      id: json['id'] is num ? (json['id'] as num).toInt() : null,
-      title: title.isNotEmpty ? title : question,
-      question: question.isNotEmpty ? question : title,
-      answer: (json['answer'] as String?)?.trim() ?? '',
-      source: _nullIfEmpty(json['source'] as String?),
-      category: _nullIfEmpty(json['category'] as String?),
-      reference: _nullIfEmpty(json['reference'] as String?),
-      url: _nullIfEmpty(json['url'] as String?),
-      createdAt: _nullIfEmpty(json['createdAt'] as String?),
-    );
-  }
-
-  /// Parses direct Almojib `v1.1/faq/search` item as fallback when Edge Function
-  /// is not yet deployed or Publishable Key is not configured.
+  /// Parses an item from the Almojib search API.
   factory ShariaAnswer.fromAlmojibItem(Map<String, dynamic> item) {
     final qObj = item['question'] as Map<String, dynamic>? ?? const {};
     final replyObj = item['first_reply'] as Map<String, dynamic>?;

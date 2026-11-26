@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/wallpaper_item.dart';
 import 'proximity_wakelock_service.dart';
+
+List<WallpaperItem> _parseWallpapers(String body) {
+  final decoded = json.decode(body);
+  final items = decoded is Map ? decoded['items'] : decoded;
+  if (items is! List) return [];
+  return items.whereType<Map<String, dynamic>>()
+      .map(WallpaperItem.fromJson)
+      .where((item) => item.id.isNotEmpty && item.imageUrl.isNotEmpty)
+      .toList(growable: false);
+}
 
 class WallpaperService {
   static final WallpaperService _instance = WallpaperService._internal();
@@ -56,148 +67,110 @@ class WallpaperService {
       return _cachedList;
     }
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Clear legacy broken caches if present
-      for (final oldKey in [
-        'cached_wallpapers_json_v1',
-        'cached_islamic_wallpapers_data_v2',
-        'cached_islamic_wallpapers_v3',
-      ]) {
-        if (prefs.containsKey(oldKey)) {
-          await prefs.remove(oldKey);
-        }
-      }
-
-      String? jsonStr = prefs.getString(_prefsCacheKey);
-
-      // Validate cache: if it contains dead links or lacks verified domain, invalidate
-      if (jsonStr != null && (jsonStr.contains('main.pictures.alkafeel.net') || !jsonStr.contains('Islamic-Shrines-Wallpapers'))) {
-        jsonStr = null;
-        await prefs.remove(_prefsCacheKey);
-      }
-
-      // If no valid cache, load updated bundled asset
-      if (jsonStr == null || jsonStr.trim().isEmpty) {
-        try {
-          jsonStr = await rootBundle.loadString('assets/data/wallpapers.json');
-        } catch (_) {}
-      }
-
-      if (jsonStr != null && jsonStr.trim().isNotEmpty) {
-        final decoded = json.decode(jsonStr);
-        final list = _extractItemsList(decoded);
-        _cachedList = list.map((e) => WallpaperItem.fromJson(e as Map<String, dynamic>)).toList();
-      }
-
-      if (forceRefresh || _cachedList.isEmpty) {
-        final updated = await checkForRemoteUpdates(force: true);
-        if (updated != null && updated.isNotEmpty) {
-          _cachedList = updated;
-        }
-      } else {
-        _checkBackgroundUpdates();
-      }
-
-      return _cachedList;
-    } catch (e) {
-      debugPrint('[WallpaperService] Error loading wallpapers: $e');
+    if (_cachedList.isEmpty) {
       try {
-        final fallbackStr = await rootBundle.loadString('assets/data/wallpapers.json');
-        final decoded = json.decode(fallbackStr);
-        final list = _extractItemsList(decoded);
-        _cachedList = list.map((e) => WallpaperItem.fromJson(e as Map<String, dynamic>)).toList();
-        return _cachedList;
-      } catch (_) {
-        return _cachedList;
+        final prefs = await SharedPreferences.getInstance();
+        final cached = prefs.getString(_prefsCacheKey);
+        if (cached != null) {
+          _cachedList = await compute(_parseWallpapers, cached);
+        }
+      } catch (error) {
+        debugPrint('[WallpaperService] Invalid cached catalog: $error');
       }
+      if (_cachedList.isEmpty) {
+        try {
+          final bundled = await rootBundle.loadString('assets/data/wallpapers.json');
+          _cachedList = await compute(_parseWallpapers, bundled);
+        } catch (error) {
+          debugPrint('[WallpaperService] Could not load bundled catalog: $error');
+        }
+      }
+    }
+
+    if (forceRefresh || _cachedList.isEmpty) {
+      await checkForRemoteUpdates(force: true);
+    } else {
+      _checkBackgroundUpdates();
+    }
+    return _cachedList;
+  }
+
+  void _checkBackgroundUpdates() {
+    unawaited(checkForRemoteUpdates());
+  }
+
+  Future<List<WallpaperItem>?>? _remoteSync;
+
+  Future<List<WallpaperItem>?> checkForRemoteUpdates({bool force = false}) async {
+    final pending = _remoteSync;
+    if (pending != null) {
+      final result = await pending;
+      if (!force || result != null) return result;
+      return checkForRemoteUpdates(force: true);
+    }
+
+    final sync = _fetchCatalogUpdate(force: force);
+    _remoteSync = sync;
+    try {
+      return await sync;
+    } finally {
+      _remoteSync = null;
     }
   }
 
-  /// Helper to extract list from either a direct List or a paged Map {'items': [...]}
-  List<dynamic> _extractItemsList(dynamic data) {
-    if (data is List) return data;
-    if (data is Map && data['items'] is List) return data['items'] as List;
-    return [];
-  }
+  static const _headers = {'User-Agent': 'NoorAlAtra/1.0'};
 
-  /// Triggers a background update check if not checked in the last 15 minutes
-  void _checkBackgroundUpdates() async {
+  Future<List<WallpaperItem>?> _fetchCatalogUpdate({required bool force}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now().millisecondsSinceEpoch;
       final lastSync = prefs.getInt(_prefsLastSyncKey) ?? 0;
-      if (now - lastSync > 15 * 60 * 1000 || _cachedList.isEmpty) {
-        await checkForRemoteUpdates(force: false);
-        await prefs.setInt(_prefsLastSyncKey, now);
+      if (!force && now - lastSync < const Duration(minutes: 15).inMilliseconds) {
+        return null;
       }
-    } catch (e) {
-      debugPrint('[WallpaperService] Background check notice: $e');
-    }
-  }
 
-  /// Checks version.json and downloads wallpapers.json or page_1.json if an update is available
-  Future<List<WallpaperItem>?> checkForRemoteUpdates({bool force = false}) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
       final currentVersion = prefs.getInt(_prefsVersionKey) ?? 0;
-
-      // 1. Fetch version.json from GitHub
-      int remoteVersion = currentVersion;
+      int? remoteVersion;
       try {
-        final versionRes = await http
-            .get(Uri.parse(versionUrl), headers: {'User-Agent': 'NoorAlAtra/1.0'})
-            .timeout(const Duration(seconds: 8));
-
-        if (versionRes.statusCode == 200) {
-          final versionData = json.decode(utf8.decode(versionRes.bodyBytes));
-          remoteVersion = (versionData['version'] is int)
-              ? versionData['version'] as int
-              : int.tryParse(versionData['version']?.toString() ?? '0') ?? 0;
+        final response = await http.get(Uri.parse(versionUrl), headers: _headers)
+            .timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200) {
+          final version = json.decode(response.body);
+          remoteVersion = int.tryParse(version['version'].toString());
         }
-      } catch (e) {
-        debugPrint('[WallpaperService] Notice on version check: $e');
+      } catch (error) {
+        debugPrint('[WallpaperService] Version check failed: $error');
       }
 
-      final bool needsUpdate = force || remoteVersion > currentVersion || _cachedList.isEmpty;
-      if (!needsUpdate) {
-        debugPrint('[WallpaperService] Wallpapers are up-to-date (v$currentVersion).');
-        return _cachedList;
+      if (!force && remoteVersion != null && remoteVersion <= currentVersion) {
+        await prefs.setInt(_prefsLastSyncKey, now);
+        return null;
       }
 
-      debugPrint('[WallpaperService] Fetching remote wallpapers (remote: v$remoteVersion)...');
-
-      // 2. Fetch wallpapers from primary wallpapersUrl, with page1Url fallback
-      http.Response? res;
-      try {
-        res = await http
-            .get(Uri.parse(wallpapersUrl), headers: {'User-Agent': 'NoorAlAtra/1.0'})
-            .timeout(const Duration(seconds: 15));
-      } catch (_) {
+      for (final url in [wallpapersUrl, page1Url]) {
         try {
-          res = await http
-              .get(Uri.parse(page1Url), headers: {'User-Agent': 'NoorAlAtra/1.0'})
-              .timeout(const Duration(seconds: 15));
-        } catch (_) {}
-      }
-
-      if (res != null && res.statusCode == 200) {
-        final body = utf8.decode(res.bodyBytes);
-        final decoded = json.decode(body);
-        final List<dynamic> list = _extractItemsList(decoded);
-
-        if (list.isNotEmpty) {
-          final items = list.map((e) => WallpaperItem.fromJson(e as Map<String, dynamic>)).toList();
-          await prefs.setString(_prefsCacheKey, body);
-          await prefs.setInt(_prefsVersionKey, remoteVersion > 0 ? remoteVersion : 1);
-          _cachedList = items;
-          debugPrint('[WallpaperService] Successfully updated ${_cachedList.length} wallpapers from GitHub');
-          return _cachedList;
+          final response = await http.get(Uri.parse(url), headers: _headers)
+              .timeout(const Duration(seconds: 8));
+          if (response.statusCode != 200) continue;
+          final body = utf8.decode(response.bodyBytes);
+          final items = await compute(_parseWallpapers, body);
+          if (items.isEmpty) continue;
+          // A single fallback page can bootstrap an empty catalog only.
+          if (url == page1Url && _cachedList.isNotEmpty) return null;
+          if (url == wallpapersUrl) {
+            await prefs.setString(_prefsCacheKey, body);
+            if (remoteVersion != null) {
+              await prefs.setInt(_prefsVersionKey, remoteVersion);
+            }
+            await prefs.setInt(_prefsLastSyncKey, now);
+          }
+          return _cachedList = items;
+        } catch (error) {
+          debugPrint('[WallpaperService] Catalog request failed: $error');
         }
       }
-    } catch (e) {
-      debugPrint('[WallpaperService] Sync notice (cached items remain available): $e');
+    } catch (error) {
+      debugPrint('[WallpaperService] Catalog sync failed: $error');
     }
     return null;
   }
@@ -212,9 +185,7 @@ class WallpaperService {
           .timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         final body = utf8.decode(res.bodyBytes);
-        final decoded = json.decode(body);
-        final List<dynamic> list = _extractItemsList(decoded);
-        return list.map((e) => WallpaperItem.fromJson(e as Map<String, dynamic>)).toList();
+        return await compute(_parseWallpapers, body);
       }
     } catch (e) {
       debugPrint('[WallpaperService] Error fetching category $slug: $e');
@@ -231,9 +202,7 @@ class WallpaperService {
           .timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         final body = utf8.decode(res.bodyBytes);
-        final decoded = json.decode(body);
-        final List<dynamic> list = _extractItemsList(decoded);
-        return list.map((e) => WallpaperItem.fromJson(e as Map<String, dynamic>)).toList();
+        return await compute(_parseWallpapers, body);
       }
     } catch (e) {
       debugPrint('[WallpaperService] Error fetching page $pageNumber: $e');
@@ -241,127 +210,121 @@ class WallpaperService {
     return null;
   }
 
-  /// Downloads wallpaper image to a local file for viewing, saving, or setting
+  final _downloads = <String, Future<File?>>{};
+  static const _maxImageBytes = 48 * 1024 * 1024;
+  static final _safeId = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
+  static const _galleryChannel = MethodChannel('com.example.flutter_noor_alatra/wakelock');
+
+  /// Downloads the original image only when an action requires a local file.
   Future<File?> downloadWallpaperFile(String imageUrl, String id) async {
+    if (!_safeId.hasMatch(id)) return null;
+    final existing = _downloads[id];
+    if (existing != null) return existing;
+    final download = _downloadWallpaper(imageUrl, id);
+    _downloads[id] = download;
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final wallpapersDir = Directory('${dir.path}/wallpapers');
-      if (!wallpapersDir.existsSync()) {
-        wallpapersDir.createSync(recursive: true);
+      return await download;
+    } finally {
+      _downloads.remove(id);
+    }
+  }
+
+  Future<File?> _downloadWallpaper(String imageUrl, String id) async {
+    final asset = imageUrl.startsWith('assets/') && !imageUrl.contains('..');
+    final uri = WallpaperItem.httpsUri(imageUrl);
+    if (!asset && uri == null) return null;
+    Directory? staging;
+    try {
+      final cache = await getTemporaryDirectory();
+      final dir = await Directory('${cache.path}/wallpaper-originals').create(recursive: true);
+      for (final extension in ['webp', 'jpg', 'png']) {
+        final file = File('${dir.path}/$id.$extension');
+        if (await file.exists()) return file;
       }
 
-      // Determine extension (.webp, .jpg, .png)
-      String ext = 'webp';
-      if (imageUrl.toLowerCase().endsWith('.png')) {
-        ext = 'png';
-      } else if (imageUrl.toLowerCase().endsWith('.jpg') || imageUrl.toLowerCase().endsWith('.jpeg')) {
-        ext = 'jpg';
-      }
-
-      final localFile = File('${wallpapersDir.path}/$id.$ext');
-
-      // If already downloaded and exists with positive length, return it
-      if (localFile.existsSync() && localFile.lengthSync() > 0) {
-        return localFile;
-      }
-
-      // Check if it's a local asset or remote URL
-      if (imageUrl.startsWith('assets/')) {
-        final byteData = await rootBundle.load(imageUrl);
-        await localFile.writeAsBytes(byteData.buffer.asUint8List(
-          byteData.offsetInBytes,
-          byteData.lengthInBytes,
-        ));
-        return localFile;
-      }
-
-      // Download full resolution from network
-      final res = await http.get(Uri.parse(imageUrl), headers: {
-        'User-Agent': 'NoorAlAtra/1.0'
-      }).timeout(const Duration(seconds: 30));
-
-      if (res.statusCode == 200) {
-        await localFile.writeAsBytes(res.bodyBytes);
-        return localFile;
+      staging = await dir.createTemp('download-');
+      final partial = File('${staging.path}/image');
+      if (asset) {
+        final data = await rootBundle.load(imageUrl);
+        await partial.writeAsBytes(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
       } else {
-        // Fallback to local asset if remote fails
-        final byteData = await rootBundle.load('assets/images/worship/wallpapers.png');
-        await localFile.writeAsBytes(byteData.buffer.asUint8List(
-          byteData.offsetInBytes,
-          byteData.lengthInBytes,
-        ));
-        return localFile;
+        final client = http.Client();
+        try {
+          final request = http.Request('GET', uri!)
+            ..headers.addAll(_headers)
+            ..followRedirects = false;
+          final response = await client.send(request).timeout(const Duration(seconds: 15));
+          if (response.statusCode != 200 || (response.contentLength ?? 0) > _maxImageBytes) {
+            return null;
+          }
+
+          final output = await partial.open(mode: FileMode.write);
+          try {
+            var received = 0;
+            await for (final chunk in response.stream.timeout(const Duration(seconds: 15))) {
+              received += chunk.length;
+              if (received > _maxImageBytes) return null;
+              await output.writeFrom(chunk);
+            }
+            if (response.contentLength != null && response.contentLength != received) return null;
+          } finally {
+            await output.close();
+          }
+        } finally {
+          client.close();
+        }
       }
-    } catch (e) {
-      debugPrint('[WallpaperService] Error downloading wallpaper file: $e');
+
+      final input = await partial.open();
+      final List<int> header;
       try {
-        final dir = await getApplicationDocumentsDirectory();
-        final localFile = File('${dir.path}/wallpapers/$id.webp');
-        final byteData = await rootBundle.load('assets/images/worship/wallpapers.png');
-        await localFile.writeAsBytes(byteData.buffer.asUint8List(
-          byteData.offsetInBytes,
-          byteData.lengthInBytes,
-        ));
-        return localFile;
-      } catch (_) {
-        return null;
+        header = await input.read(12);
+      } finally {
+        await input.close();
+      }
+      final extension = _imageExtension(header);
+      if (extension == null) return null;
+      return await partial.rename('${dir.path}/$id.$extension');
+    } catch (error) {
+      debugPrint('[WallpaperService] Image download failed: $error');
+      return null;
+    } finally {
+      if (staging != null) {
+        try {
+          await staging.delete(recursive: true);
+        } on FileSystemException catch (error) {
+          debugPrint('[WallpaperService] Could not clean download staging: $error');
+        }
       }
     }
   }
 
-  /// Copies the wallpaper image to public pictures/downloads gallery (Android)
-  /// or saves directly to iOS Photos Library with permission prompt.
-  Future<String?> saveWallpaperToGallery(String imageUrl, String id) async {
-    try {
-      final file = await downloadWallpaperFile(imageUrl, id);
-      if (file == null || !file.existsSync()) return null;
-
-      if (Platform.isIOS) {
-        final saved = await ProximityWakeLockService().setDeviceWallpaper(
-          filePath: file.path,
-          target: 'both',
-        );
-        return saved ? file.path : null;
-      }
-
-      Directory? targetDir;
-      if (Platform.isAndroid) {
-        final publicPictures = Directory('/storage/emulated/0/Pictures/NoorAlAtra');
-        final publicDownloads = Directory('/storage/emulated/0/Download');
-
-        try {
-          if (!publicPictures.existsSync()) {
-            publicPictures.createSync(recursive: true);
-          }
-          targetDir = publicPictures;
-        } catch (_) {
-          try {
-            if (publicDownloads.existsSync()) {
-              targetDir = publicDownloads;
-            }
-          } catch (_) {}
-        }
-
-        if (targetDir == null) {
-          try {
-            final extDir = await getExternalStorageDirectory();
-            targetDir = extDir;
-          } catch (_) {}
-        }
-      }
-
-      targetDir ??= await getApplicationDocumentsDirectory();
-
-      final ext = file.path.split('.').last;
-      final fileName = 'NoorAlAtra_Wallpaper_${id}_${DateTime.now().millisecondsSinceEpoch}.$ext';
-      final savedFile = File('${targetDir.path}/$fileName');
-      await file.copy(savedFile.path);
-
-      return savedFile.path;
-    } catch (e) {
-      debugPrint('[WallpaperService] Error saving wallpaper to gallery: $e');
-      return null;
+  String? _imageExtension(List<int> header) {
+    if (header.length < 12) return null;
+    if (header[0] == 0xff && header[1] == 0xd8 && header[2] == 0xff) return 'jpg';
+    if (header[0] == 0x89 && String.fromCharCodes(header.sublist(1, 4)) == 'PNG') return 'png';
+    if (String.fromCharCodes(header.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(header.sublist(8, 12)) == 'WEBP') {
+      return 'webp';
     }
+    return null;
+  }
+
+  Future<String?> saveWallpaperToGallery(String imageUrl, String id) async {
+    final file = await downloadWallpaperFile(imageUrl, id);
+    if (file == null) return null;
+    if (Platform.isAndroid) {
+      return _galleryChannel.invokeMethod<String>('saveWallpaperToGallery', {'filePath': file.path});
+    }
+    if (Platform.isIOS) {
+      final saved = await applyDeviceWallpaper(file: file);
+      return saved ? file.path : null;
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+    final name = 'NoorAlAtra_${DateTime.now().millisecondsSinceEpoch}_${file.uri.pathSegments.last}';
+    final saved = await file.copy('${directory.path}/$name');
+    return saved.path;
   }
 
   /// Applies image as device wallpaper using native WallpaperManager

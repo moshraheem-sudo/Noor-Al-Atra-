@@ -1,0 +1,28 @@
+name: Verify iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-ios.yml'
+      - 'ios/**'
+      - 'lib/**'
+      - 'packages/**'
+      - 'pubspec.*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-simulator:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --simulator --debug --no-pub
