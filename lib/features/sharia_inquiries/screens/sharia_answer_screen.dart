@@ -350,6 +350,35 @@ class _ShariaWebViewFallbackScreenState extends State<ShariaWebViewFallbackScree
   bool _hasError = false;
   int _progress = 0;
 
+  static const String _hideAppBannerJs = '''
+    (function() {
+      function removeInstallBanner() {
+        var all = document.querySelectorAll('div, section, aside, footer');
+        for (var i = 0; i < all.length; i++) {
+          var el = all[i];
+          var txt = (el.innerText || '').trim();
+          if (txt.indexOf('تثبيت تطبيق المجيب') !== -1 && el.offsetHeight < 180) {
+            el.style.setProperty('display', 'none', 'important');
+            el.remove();
+          }
+        }
+        var links = document.querySelectorAll('a[href*="play.google.com"], a[href*="apps.apple.com"], a[href*="/app"]');
+        for (var j = 0; j < links.length; j++) {
+          var parent = links[j].closest('.fixed-bottom, [style*="position: fixed"], [class*="banner"], [class*="install"], [class*="download"]');
+          if (parent && parent.offsetHeight < 180) {
+            parent.style.setProperty('display', 'none', 'important');
+            parent.remove();
+          }
+        }
+      }
+      removeInstallBanner();
+      if (!window._noorBannerObserver) {
+        window._noorBannerObserver = new MutationObserver(removeInstallBanner);
+        window._noorBannerObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+      }
+    })();
+  ''';
+
   @override
   void initState() {
     super.initState();
@@ -369,6 +398,12 @@ class _ShariaWebViewFallbackScreenState extends State<ShariaWebViewFallbackScree
             }
           },
           onPageFinished: (_) {
+            _controller.runJavaScript(_hideAppBannerJs).catchError((_) {});
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                _controller.runJavaScript(_hideAppBannerJs).catchError((_) {});
+              }
+            });
             if (mounted) setState(() => _isLoading = false);
           },
           onWebResourceError: (error) {

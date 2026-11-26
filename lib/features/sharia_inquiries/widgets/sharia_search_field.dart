@@ -6,6 +6,7 @@ class ShariaSearchField extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onSearch;
   final VoidCallback onClear;
+  final VoidCallback? onVoiceSearch;
   final ValueChanged<String>? onChanged;
 
   const ShariaSearchField({
@@ -15,6 +16,7 @@ class ShariaSearchField extends StatelessWidget {
     required this.isLoading,
     required this.onSearch,
     required this.onClear,
+    this.onVoiceSearch,
     this.onChanged,
   });
 
@@ -72,17 +74,33 @@ class ShariaSearchField extends StatelessWidget {
                   color: accent,
                   size: 22,
                 ),
-                suffixIcon: controller.text.isNotEmpty && !isLoading
-                    ? IconButton(
-                        icon: Icon(
-                          Icons.close_rounded,
-                          size: 19,
-                          color: isDark ? Colors.white54 : Colors.grey.shade600,
-                        ),
-                        tooltip: 'مسح النص',
-                        onPressed: onClear,
-                      )
-                    : null,
+                suffixIcon: isLoading
+                    ? null
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (controller.text.isNotEmpty)
+                            IconButton(
+                              icon: Icon(
+                                Icons.close_rounded,
+                                size: 19,
+                                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                              ),
+                              tooltip: 'مسح النص',
+                              onPressed: onClear,
+                            ),
+                          if (onVoiceSearch != null)
+                            IconButton(
+                              icon: Icon(
+                                Icons.mic_rounded,
+                                size: 21,
+                                color: accent,
+                              ),
+                              tooltip: 'البحث بالصوت',
+                              onPressed: onVoiceSearch,
+                            ),
+                        ],
+                      ),
               ),
             ),
           ),

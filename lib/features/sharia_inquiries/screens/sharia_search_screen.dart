@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import '../../../services/voice_search_service.dart';
 import '../models/sharia_answer.dart';
 import '../services/sharia_search_service.dart';
 import '../widgets/sharia_loading_view.dart';
@@ -40,8 +41,12 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
   static const List<String> _suggestedTopics = [
     'أحكام الصلاة',
     'الوضوء',
+    'الطهارة',
     'الصوم',
+    'صلاة القصر',
+    'السفر',
     'الخمس',
+    'الزكاة',
     'الحج',
     'المعاملات',
   ];
@@ -193,6 +198,15 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
                       isLoading: _isSearching,
                       onSearch: () => _performSearch(),
                       onClear: _clearSearch,
+                      onVoiceSearch: () async {
+                        final spoken = await VoiceSearchService.startVoiceSearch(
+                          context,
+                          prompt: 'تحدث بسؤالك الشرعي...',
+                        );
+                        if (spoken != null && spoken.isNotEmpty && mounted) {
+                          _performSearch(overrideQuery: spoken);
+                        }
+                      },
                       onChanged: (_) => setState(() {}),
                     ),
                   ],
