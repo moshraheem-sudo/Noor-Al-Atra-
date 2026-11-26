@@ -1357,10 +1357,42 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
 
   void _showDownloadSurahDialog(BuildContext context, QuranProvider quran) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final file = await _getLocalSurahAudioFile(_currentChapter.id, quran.selectedReciter.id);
-    bool isDownloaded = await file.exists();
-    double downloadProgress = 0.0;
+    final reciterFolder = quran.selectedReciter.everyAyahFolder;
+    final ayahDir = await AudioPlayerService.getAyahAudioDir(reciterFolder, _currentChapter.id);
+    final legacyFile = await _getLocalSurahAudioFile(_currentChapter.id, quran.selectedReciter.id);
+
+    Future<({int count, int bytes})> scanAyahFiles() async {
+      int count = 0;
+      int bytes = 0;
+      if (await ayahDir.exists()) {
+        for (int i = 1; i <= _currentChapter.versesCount; i++) {
+          final a = i.toString().padLeft(3, '0');
+          final f = File('${ayahDir.path}/$a.mp3');
+          if (await f.exists()) {
+            final len = await f.length();
+            if (len > 1024) {
+              count++;
+              bytes += len;
+            }
+          }
+        }
+      }
+      return (count: count, bytes: bytes);
+    }
+
+    final initialScan = await scanAyahFiles();
+    int downloadedAyahs = initialScan.count;
+    int totalBytesOnDisk = initialScan.bytes;
+    bool hasLegacyFullSurah = await legacyFile.exists() && await legacyFile.length() > 2048;
+    if (hasLegacyFullSurah && totalBytesOnDisk == 0) {
+      totalBytesOnDisk = await legacyFile.length();
+    }
+    bool isAllAyahsDownloaded = downloadedAyahs >= _currentChapter.versesCount;
+    double downloadProgress = _currentChapter.versesCount > 0
+        ? (downloadedAyahs / _currentChapter.versesCount).clamp(0.0, 1.0)
+        : 0.0;
     bool isDownloading = false;
+    bool isCancelled = false;
     String statusMessage = '';
 
     if (!context.mounted) return;
@@ -1378,202 +1410,285 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
               return '${(kb / 1024).toStringAsFixed(1)} MB';
             }
 
-            int fileSize = isDownloaded && file.existsSync() ? file.lengthSync() : 0;
-
             Future<void> startDownload() async {
+              isCancelled = false;
               if (dialogCtx.mounted) {
                 setDlgState(() {
                   isDownloading = true;
-                  downloadProgress = 0.01;
-                  statusMessage = 'جارٍ الاتصال بالسيرفر لبدء التحميل...';
+                  downloadProgress = 0.02;
+                  statusMessage = 'جارٍ تجهيز نص السورة وتحميل الآيات الصوتية...';
                 });
               }
 
+              final client = http.Client();
               try {
-                final style = quran.currentStyle;
-                final server = style?.server ?? 'https://server7.mp3quran.net/basit/';
-                final audioUrl = QuranApiService.getSurahAudioUrl(server, _currentChapter.id);
+                // 1. Ensure Surah verses text is cached offline
+                await QuranApiService.getVerses(_currentChapter.id);
 
-                final request = http.Request('GET', Uri.parse(audioUrl));
-                final response = await http.Client().send(request);
+                // 2. Ensure ayah audio directory exists
+                if (!await ayahDir.exists()) {
+                  await ayahDir.create(recursive: true);
+                }
 
-                if (response.statusCode >= 200 && response.statusCode < 300) {
-                  final contentLength = response.contentLength ?? 0;
-                  int received = 0;
-                  final tempFile = File('${file.path}.part');
-                  final sink = tempFile.openWrite();
+                final totalAyahs = _currentChapter.versesCount;
+                final s = _currentChapter.id.toString().padLeft(3, '0');
+                final List<int> missingAyahs = [];
+                int completed = 0;
+                int bytesSum = 0;
 
-                  await response.stream.listen((chunk) {
-                    sink.add(chunk);
-                    received += chunk.length;
-                    if (contentLength > 0) {
-                      setDlgState(() {
-                        downloadProgress = (received / contentLength).clamp(0.0, 1.0);
-                        statusMessage = '${(downloadProgress * 100).toInt()}% • تم تحميل ${formatBytes(received)} من ${formatBytes(contentLength)}';
-                      });
-                    } else {
-                      setDlgState(() {
-                        statusMessage = 'تم تحميل ${formatBytes(received)}...';
-                      });
-                    }
-                  }).asFuture();
-
-                  await sink.flush();
-                  await sink.close();
-
-                  if (await tempFile.exists()) {
-                    if (await file.exists()) {
-                      await file.delete();
-                    }
-                    await tempFile.rename(file.path);
+                for (int i = 1; i <= totalAyahs; i++) {
+                  final a = i.toString().padLeft(3, '0');
+                  final f = File('${ayahDir.path}/$a.mp3');
+                  if (await f.exists() && await f.length() > 1024) {
+                    completed++;
+                    bytesSum += await f.length();
+                  } else {
+                    missingAyahs.add(i);
                   }
+                }
 
+                int nextIdx = 0;
+                int failedCount = 0;
+
+                Future<void> worker() async {
+                  while (!isCancelled) {
+                    if (nextIdx >= missingAyahs.length) break;
+                    final ayahNum = missingAyahs[nextIdx++];
+                    final a = ayahNum.toString().padLeft(3, '0');
+                    final url = 'https://everyayah.com/data/$reciterFolder/$s$a.mp3';
+                    final targetFile = File('${ayahDir.path}/$a.mp3');
+                    final tempFile = File('${targetFile.path}.part');
+
+                    bool ok = false;
+                    for (int attempt = 0; attempt < 2 && !ok && !isCancelled; attempt++) {
+                      try {
+                        final res = await client
+                            .get(Uri.parse(url))
+                            .timeout(const Duration(seconds: 25));
+                        if (res.statusCode >= 200 &&
+                            res.statusCode < 300 &&
+                            res.bodyBytes.length > 1024) {
+                          await tempFile.writeAsBytes(res.bodyBytes, flush: true);
+                          if (await targetFile.exists()) {
+                            await targetFile.delete();
+                          }
+                          await tempFile.rename(targetFile.path);
+                          bytesSum += res.bodyBytes.length;
+                          completed++;
+                          ok = true;
+                        }
+                      } catch (_) {
+                        if (await tempFile.exists()) {
+                          try {
+                            await tempFile.delete();
+                          } catch (_) {}
+                        }
+                      }
+                    }
+                    if (!ok && !isCancelled) {
+                      failedCount++;
+                    }
+
+                    if (dialogCtx.mounted && !isCancelled) {
+                      setDlgState(() {
+                        downloadedAyahs = completed;
+                        totalBytesOnDisk = bytesSum;
+                        downloadProgress = totalAyahs > 0
+                            ? (completed / totalAyahs).clamp(0.0, 1.0)
+                            : 1.0;
+                        statusMessage =
+                            '${(downloadProgress * 100).toInt()}% • تم تحميل $completed من $totalAyahs آية';
+                      });
+                    }
+                  }
+                }
+
+                const int concurrency = 6;
+                final workers = List.generate(
+                  missingAyahs.length < concurrency
+                      ? (missingAyahs.isEmpty ? 1 : missingAyahs.length)
+                      : concurrency,
+                  (_) => worker(),
+                );
+                await Future.wait(workers);
+
+                if (!isCancelled && dialogCtx.mounted) {
+                  final allDone = completed >= totalAyahs && failedCount == 0;
                   setDlgState(() {
                     isDownloading = false;
-                    isDownloaded = true;
-                    statusMessage = 'اكتمل التحميل بنجاح!';
+                    downloadedAyahs = completed;
+                    totalBytesOnDisk = bytesSum;
+                    isAllAyahsDownloaded = allDone;
+                    statusMessage = allDone
+                        ? 'اكتمل تحميل السورة والصوت بنجاح!'
+                        : 'تم تحميل $completed من $totalAyahs آية. تحقق من الإنترنت للاستكمال.';
                   });
 
-                  if (context.mounted) {
+                  if (allDone && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        backgroundColor: const Color(0xFF0284C7),
-                        content: Text('تم تحميل سورة ${_currentChapter.nameArabic} بصوت ${quran.selectedReciter.name} بنجاح 📥🎧'),
+                        backgroundColor: const Color(0xFF059669),
+                        content: Text(
+                          'تم تحميل سورة ${_currentChapter.nameArabic} والنص والصوت معاً بنجاح 📥🎧',
+                        ),
                       ),
                     );
                   }
-                } else {
-                  throw Exception('HTTP error ${response.statusCode}');
                 }
               } catch (e) {
-                setDlgState(() {
-                  isDownloading = false;
-                  statusMessage = 'تعذر التحميل، يرجى التأكد من اتصال الإنترنت.';
-                });
+                if (dialogCtx.mounted) {
+                  setDlgState(() {
+                    isDownloading = false;
+                    statusMessage = 'تعذر التحميل، يرجى التأكد من اتصال الإنترنت.';
+                  });
+                }
+              } finally {
+                client.close();
               }
             }
 
-            return AlertDialog(
-              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.cloud_download_outlined, color: Color(0xFF0284C7)),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'تحميل سورة ${_currentChapter.nameArabic}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF16202C) : const Color(0xFFF0F7FF),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFD0E5FA)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.record_voice_over_rounded, size: 18, color: Color(0xFF0284C7)),
-                            const SizedBox(width: 6),
-                            Text(
-                              'القارئ: ${quran.selectedReciter.name}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'تلاوة كاملة لجميع آيات السورة (${_currentChapter.versesCount} آية)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                          ),
-                        ),
-                        if (isDownloaded && fileSize > 0) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'الحجم في الجهاز: ${formatBytes(fileSize)}',
-                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF059669), fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  if (isDownloading) ...[
-                    LinearProgressIndicator(
-                      value: downloadProgress > 0 ? downloadProgress : null,
-                      backgroundColor: Colors.grey.shade300,
-                      color: const Color(0xFF0284C7),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      statusMessage,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0284C7)),
-                    ),
-                  ] else if (isDownloaded) ...[
+            return PopScope(
+              onPopInvokedWithResult: (didPop, result) {
+                if (didPop) isCancelled = true;
+              },
+              child: AlertDialog(
+                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                title: Row(
+                  children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF059669).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
                       ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 20),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'السورة محملة وجاهزة للاستماع أوفلاين بدون إنترنت',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: const Icon(Icons.cloud_download_outlined, color: Color(0xFF0284C7)),
                     ),
-                  ] else ...[
-                    Text(
-                      statusMessage.isNotEmpty ? statusMessage : 'اضغط على زر التحميل لحفظ التلاوة كاملة بصيغة MP3 للاستماع إليها بدون اتصال بالإنترنت في أي وقت.',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
-                        height: 1.4,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'تحميل سورة ${_currentChapter.nameArabic} والصوت',
+                        style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
-                ],
-              ),
-              actions: [
-                if (!isDownloading) ...[
-                  if (isDownloaded) ...[
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF16202C) : const Color(0xFFF0F7FF),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFD0E5FA)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.record_voice_over_rounded, size: 18, color: Color(0xFF0284C7)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'القارئ: ${quran.selectedReciter.name}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'النص والتلاوة الكاملة آية بآية مع التمرير التلقائي (${_currentChapter.versesCount} آية)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                            ),
+                          ),
+                          if (totalBytesOnDisk > 0) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'الحجم في الجهاز: ${formatBytes(totalBytesOnDisk)} ($downloadedAyahs/${_currentChapter.versesCount} آية)',
+                              style: const TextStyle(fontSize: 11.5, color: Color(0xFF059669), fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    if (isDownloading) ...[
+                      LinearProgressIndicator(
+                        value: downloadProgress > 0 ? downloadProgress : null,
+                        backgroundColor: Colors.grey.shade300,
+                        color: const Color(0xFF0284C7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        statusMessage,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0284C7)),
+                      ),
+                    ] else if (isAllAyahsDownloaded) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF059669).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 20),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'السورة والصوت محملة وجاهزة للتشغيل والتمرير بدون إنترنت',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      Text(
+                        statusMessage.isNotEmpty
+                            ? statusMessage
+                            : 'اضغط لتحميل السورة والصوت معاً لتعمل التلاوة مع التمرير التلقائي دون الحاجة للإنترنت.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  if (isDownloading) ...[
+                    TextButton(
+                      onPressed: () {
+                        isCancelled = true;
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('إلغاء', style: TextStyle(color: Colors.red)),
+                    ),
+                  ] else if (isAllAyahsDownloaded) ...[
                     TextButton(
                       onPressed: () async {
-                        if (await file.exists()) {
-                          await file.delete();
+                        if (await ayahDir.exists()) {
+                          await ayahDir.delete(recursive: true);
+                        }
+                        if (await legacyFile.exists()) {
+                          await legacyFile.delete();
                         }
                         setDlgState(() {
-                          isDownloaded = false;
-                          statusMessage = 'تم حذف الملف من الجهاز';
+                          isAllAyahsDownloaded = false;
+                          hasLegacyFullSurah = false;
+                          downloadedAyahs = 0;
+                          totalBytesOnDisk = 0;
+                          statusMessage = 'تم حذف الملفات من الجهاز';
                         });
                       },
                       child: const Text('حذف', style: TextStyle(color: Colors.red)),
@@ -1587,34 +1702,45 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                       label: const Text('تشغيل بدون إنترنت', style: TextStyle(color: Colors.white)),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        AudioPlayerService().playTrack(AudioTrackInfo(
-                          title: 'سورة ${_currentChapter.nameArabic}',
-                          subtitle: quran.selectedReciter.name,
-                          url: file.path,
-                        ));
+                        _playAyahDirect(_selectedAyahNum ?? 1, continuous: true);
                       },
                     ),
                   ] else ...[
-                    TextButton.icon(
-                      icon: const Icon(Icons.play_circle_outline, size: 18),
-                      label: const Text('استماع مباشر'),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _playFullSurah(quran);
-                      },
-                    ),
+                    if (hasLegacyFullSurah)
+                      TextButton.icon(
+                        icon: const Icon(Icons.play_arrow_rounded, size: 18, color: Color(0xFF059669)),
+                        label: const Text('تشغيل الصوت فقط', style: TextStyle(color: Color(0xFF059669))),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _playFullSurah(quran);
+                        },
+                      )
+                    else
+                      TextButton.icon(
+                        icon: const Icon(Icons.play_circle_outline, size: 18),
+                        label: const Text('استماع مباشر'),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _playAyahDirect(_selectedAyahNum ?? 1, continuous: true);
+                        },
+                      ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0284C7),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
-                      label: const Text('تحميل الآن', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      label: Text(
+                        downloadedAyahs > 0
+                            ? 'استكمال التحميل ($downloadedAyahs/${_currentChapter.versesCount})'
+                            : 'تحميل السورة والصوت معاً',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
                       onPressed: startDownload,
                     ),
                   ],
                 ],
-              ],
+              ),
             );
           },
         );
@@ -1784,6 +1910,35 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                   ),
 
                   const SizedBox(width: 6),
+
+                  // زر إيقاف الصوت الدائم أثناء القراءة والتمرير عند تشغيل أي صوت
+                  if (AudioPlayerService().isPlaying || _isContinuousReciting || _activeRecitingAyah != null) ...[
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.16),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.redAccent.withValues(alpha: 0.75),
+                          width: 1.4,
+                        ),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.stop_rounded, size: 20),
+                        color: Colors.redAccent,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'إيقاف الصوت',
+                        onPressed: () {
+                          _stopContinuousRecitation();
+                          AudioPlayerService().stop();
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
 
                   // 6. Chevron (<) on far left - الانتقال للسورة التالية
                   Container(
@@ -2469,28 +2624,30 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
           ),
 
             // 3. Floating Recitation Mini-Player Bar at bottom with Collapsible side-dock
-            if (_activeRecitingAyah != null)
+            if (_activeRecitingAyah != null || AudioPlayerService().isPlaying)
               Positioned(
                 bottom: 12,
-                left: _isPlayerCollapsed ? null : 14,
+                left: (_activeRecitingAyah != null && _isPlayerCollapsed) ? null : 14,
                 right: 14,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 320),
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SizeTransition(
-                        sizeFactor: animation,
-                        axis: Axis.horizontal,
-                        alignment: Alignment.centerRight,
-                        child: child,
+                child: _activeRecitingAyah == null
+                    ? _buildFullSurahStopBar(isDark, quran)
+                    : AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 320),
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SizeTransition(
+                              sizeFactor: animation,
+                              axis: Axis.horizontal,
+                              alignment: Alignment.centerRight,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: _isPlayerCollapsed
+                            ? _buildCollapsedPlayerDock(isDark, quran)
+                            : _buildMiniPlayerBar(isDark, quran),
                       ),
-                    );
-                  },
-                  child: _isPlayerCollapsed
-                      ? _buildCollapsedPlayerDock(isDark, quran)
-                      : _buildMiniPlayerBar(isDark, quran),
-                ),
               ),
 
             // 4. Floating Bookmark Pill Toast
@@ -2593,8 +2750,106 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                   ),
                 ),
               ),
+              const SizedBox(width: 6),
+
+              // Dedicated Stop Audio button even when collapsed
+              GestureDetector(
+                onTap: () {
+                  _stopContinuousRecitation();
+                  playerService.stop();
+                  setState(() {});
+                },
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.redAccent.withValues(alpha: 0.7),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.stop_rounded,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
+                ),
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullSurahStopBar(bool isDark, QuranProvider quran) {
+    final playerService = AudioPlayerService();
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.65),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.volume_up_rounded, color: Color(0xFFD4AF37), size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    playerService.currentTrack?.title ?? 'سورة ${_currentChapter.nameArabic}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    playerService.currentTrack?.subtitle ?? quran.selectedReciter.name,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFFD4AF37), fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              icon: const Icon(Icons.stop_rounded, size: 18),
+              label: const Text('إيقاف الصوت', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              onPressed: () {
+                _stopContinuousRecitation();
+                playerService.stop();
+                setState(() {});
+              },
+            ),
+          ],
         ),
       ),
     );

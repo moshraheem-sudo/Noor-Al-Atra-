@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
 
 class AudioTrackInfo {
   final String title;
@@ -227,7 +229,32 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
-  /// Start playing an Ayah with EveryAyah URL pattern:
+  /// Returns the local directory for per-ayah offline MP3 files for a reciter & surah.
+  static Future<Directory> getAyahAudioDir(String reciterPath, int surahId) async {
+    final docDir = await getApplicationDocumentsDirectory();
+    final safeFolder = reciterPath.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final s = surahId.toString().padLeft(3, '0');
+    return Directory('${docDir.path}/quran_audio/ayahs/$safeFolder/$s');
+  }
+
+  /// Checks if an individual ayah MP3 is downloaded locally for offline playback.
+  static Future<String?> findLocalAyahAudioPath(
+    String reciterPath,
+    int surahId,
+    int ayahNum,
+  ) async {
+    try {
+      final dir = await getAyahAudioDir(reciterPath, surahId);
+      final a = ayahNum.toString().padLeft(3, '0');
+      final file = File('${dir.path}/$a.mp3');
+      if (await file.exists() && await file.length() > 1024) {
+        return file.path;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Start playing an Ayah from local offline storage if available, otherwise EveryAyah URL:
   /// https://everyayah.com/data/{reciter_path}/{surah_3_digits}{ayah_3_digits}.mp3
   Future<void> playQuranAyah({
     required int surahId,
@@ -246,7 +273,8 @@ class AudioPlayerService extends ChangeNotifier {
 
     final s = surahId.toString().padLeft(3, '0');
     final a = ayahNum.toString().padLeft(3, '0');
-    final url = 'https://everyayah.com/data/$reciterPath/$s$a.mp3';
+    final localPath = await findLocalAyahAudioPath(reciterPath, surahId, ayahNum);
+    final sourceUrl = localPath ?? 'https://everyayah.com/data/$reciterPath/$s$a.mp3';
 
     onAyahChanged?.call(surahId, ayahNum);
     notifyListeners();
@@ -255,7 +283,7 @@ class AudioPlayerService extends ChangeNotifier {
       AudioTrackInfo(
         title: 'سورة $surahId - آية $ayahNum',
         subtitle: reciterName,
-        url: url,
+        url: sourceUrl,
         category: 'quran_verse',
       ),
     );
@@ -356,11 +384,20 @@ class AudioPlayerService extends ChangeNotifier {
         await _player.stop();
       } catch (_) {}
 
-      final cleanUrl = _sanitizeUrl(track.url);
-      if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-        await _player.play(UrlSource(cleanUrl));
+      final rawUrl = track.url.trim();
+      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+        await _player.play(UrlSource(_sanitizeUrl(rawUrl)));
       } else {
-        await _player.play(DeviceFileSource(cleanUrl));
+        // Resolve local file path without URL-encoding spaces (critical for iOS & Android offline playback)
+        String localPath = rawUrl;
+        if (localPath.startsWith('file://')) {
+          try {
+            localPath = Uri.parse(localPath).toFilePath();
+          } catch (_) {
+            localPath = localPath.replaceFirst('file://', '');
+          }
+        }
+        await _player.play(DeviceFileSource(localPath));
       }
     } catch (e) {
       debugPrint('Audio playback error: $e');
