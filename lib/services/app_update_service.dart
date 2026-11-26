@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_notification_service.dart';
 
 class AppUpdateService {
-  static const String currentVersion = '5.69.0';
+  static const String currentVersion = '5.70.0';
 
   // 1️⃣ مستودع التحديثات الرئيسي لتطبيق نور العترة
   static const String primaryRepoUrl = 'https://github.com/moshraheem-sudo/Noor-Al-Atra-';
@@ -60,9 +60,10 @@ class AppUpdateService {
     } catch (_) {}
   }
 
-  /// فحص صامت للتحديثات في خلفية التطبيق عند الإقلاع بدون إزعاج المستخدم
+  /// فحص صامت للتحديثات في خلفية التطبيق عند الإقلاع بدون إزعاج المستخدم (أندرويد فقط)
   /// في حال توفر إصدار جديد يتم إظهار نافذة التحديث المباشر للمستخدم تلقائياً
   static Future<void> checkUpdateSilently(BuildContext context) async {
+    if (!Platform.isAndroid) return;
     Map<String, dynamic>? releaseData;
     String targetRepoUrl = primaryRepoUrl;
 

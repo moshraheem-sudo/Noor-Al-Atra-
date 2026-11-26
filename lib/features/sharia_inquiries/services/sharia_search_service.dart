@@ -31,9 +31,20 @@ class ShariaSearchService {
   final http.Client _client;
   final Map<String, _CachedSearchEntry> _cache = {};
 
-  static String buildWebSearchUrl(String query) {
+  static const List<Map<String, dynamic>> marjaOptions = [
+    {'id': null, 'name': 'جميع المراجع'},
+    {'id': 1, 'name': 'السيد السيستاني'},
+    {'id': 3, 'name': 'السيد محمد سعيد الحكيم'},
+    {'id': 2, 'name': 'السيد الخوئي'},
+    {'id': 5, 'name': 'السيد الشهيد الصدر'},
+    {'id': 6, 'name': 'الشيخ الفياض'},
+    {'id': 7, 'name': 'الشيخ بشير النجفي'},
+  ];
+
+  static String buildWebSearchUrl(String query, {int? marjaId}) {
     final encoded = Uri.encodeQueryComponent(query.trim());
-    return 'https://almojib.com/ar/search?search=$encoded';
+    final marjaParam = marjaId != null ? '&marja_id=$marjaId' : '';
+    return 'https://almojib.com/ar/search?search=$encoded$marjaParam';
   }
 
   void clearCache() => _cache.clear();
@@ -41,7 +52,11 @@ class ShariaSearchService {
   /// Searches published Sharia Q&As via Supabase `sharia-search` Edge Function,
   /// with automatic fallback to the public Almojib API if the Edge Function
   /// key is not configured or not yet deployed.
-  Future<ShariaSearchResponse> search(String rawQuery, {int page = 1}) async {
+  Future<ShariaSearchResponse> search(
+    String rawQuery, {
+    int page = 1,
+    int? marjaId,
+  }) async {
     final query = rawQuery.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (query.isEmpty) {
       return const ShariaSearchResponse(
@@ -58,18 +73,18 @@ class ShariaSearchService {
       );
     }
 
-    final cacheKey = '${query}_$page';
+    final cacheKey = '${query}_${page}_${marjaId ?? 'all'}';
     final cached = _cache[cacheKey];
     if (cached != null && DateTime.now().difference(cached.cachedAt) < _cacheTtl) {
       return cached.response;
     }
 
-    final fallbackUrl = buildWebSearchUrl(query);
+    final fallbackUrl = buildWebSearchUrl(query, marjaId: marjaId);
 
     // 1. Try Supabase Edge Function if publishable key is configured
     if (supabasePublishableKey.isNotEmpty) {
       try {
-        final edgeRes = await _searchViaSupabaseEdge(query, page);
+        final edgeRes = await _searchViaSupabaseEdge(query, page, marjaId: marjaId);
         if (edgeRes != null) {
           _storeCache(cacheKey, edgeRes);
           return edgeRes;
@@ -95,7 +110,7 @@ class ShariaSearchService {
 
     // 2. Direct Almojib public search API fallback
     try {
-      final directRes = await _searchViaAlmojibApi(query, page, fallbackUrl);
+      final directRes = await _searchViaAlmojibApi(query, page, fallbackUrl, marjaId: marjaId);
       if (directRes.status == ShariaSearchStatus.success ||
           directRes.status == ShariaSearchStatus.empty) {
         _storeCache(cacheKey, directRes);
@@ -132,7 +147,11 @@ class ShariaSearchService {
     }
   }
 
-  Future<ShariaSearchResponse?> _searchViaSupabaseEdge(String query, int page) async {
+  Future<ShariaSearchResponse?> _searchViaSupabaseEdge(
+    String query,
+    int page, {
+    int? marjaId,
+  }) async {
     final res = await _client
         .post(
           Uri.parse(edgeFunctionUrl),
@@ -141,7 +160,11 @@ class ShariaSearchService {
             'apikey': supabasePublishableKey,
             'Authorization': 'Bearer $supabasePublishableKey',
           },
-          body: json.encode({'query': query, 'page': page}),
+          body: json.encode({
+            'query': query,
+            'page': page,
+            if (marjaId != null) 'marja_id': marjaId,
+          }),
         )
         .timeout(_requestTimeout);
 
@@ -180,10 +203,12 @@ class ShariaSearchService {
   Future<ShariaSearchResponse> _searchViaAlmojibApi(
     String query,
     int page,
-    String fallbackUrl,
-  ) async {
+    String fallbackUrl, {
+    int? marjaId,
+  }) async {
     final encoded = Uri.encodeQueryComponent(query);
-    final url = 'https://api.almojib.com/ar/api/v1.1/faq/search?search=$encoded&page=$page';
+    final marjaParam = marjaId != null ? '&marja_id=$marjaId' : '';
+    final url = 'https://api.almojib.com/ar/api/v1.1/faq/search?search=$encoded&page=$page$marjaParam';
 
     final res = await _client
         .get(

@@ -119,9 +119,16 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-          children: [
+        body: SafeArea(
+          bottom: true,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              MediaQuery.of(context).padding.bottom + 36,
+            ),
+            children: [
             // Metadata chips
             if (widget.item.category != null ||
                 widget.item.reference != null ||
@@ -282,6 +289,7 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
               ),
             ],
           ],
+          ),
         ),
       ),
     );

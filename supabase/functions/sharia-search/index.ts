@@ -63,17 +63,22 @@ serve(async (req: Request) => {
   try {
     let rawQuery = "";
     let page = 1;
+    let marjaId: number | null = null;
 
     if (req.method === "GET") {
       const url = new URL(req.url);
       rawQuery = url.searchParams.get("query") ?? url.searchParams.get("q") ?? url.searchParams.get("search") ?? "";
       const pageParam = Number(url.searchParams.get("page") ?? "1");
       if (Number.isFinite(pageParam) && pageParam >= 1) page = Math.floor(pageParam);
+      const marjaParam = Number(url.searchParams.get("marja_id") ?? url.searchParams.get("marjaId") ?? "");
+      if (Number.isFinite(marjaParam) && marjaParam > 0) marjaId = Math.floor(marjaParam);
     } else if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       rawQuery = String(body?.query ?? body?.q ?? body?.search ?? "");
       const pageParam = Number(body?.page ?? 1);
       if (Number.isFinite(pageParam) && pageParam >= 1) page = Math.floor(pageParam);
+      const marjaParam = Number(body?.marja_id ?? body?.marjaId ?? "");
+      if (Number.isFinite(marjaParam) && marjaParam > 0) marjaId = Math.floor(marjaParam);
     } else {
       return new Response(
         JSON.stringify({ success: false, error: "Method not allowed" }),
@@ -105,8 +110,9 @@ serve(async (req: Request) => {
     }
 
     const encodedQuery = encodeURIComponent(query);
-    const targetUrl = `https://api.almojib.com/ar/api/v1.1/faq/search?search=${encodedQuery}&page=${page}`;
-    const fallbackUrl = `https://almojib.com/ar/search?search=${encodedQuery}`;
+    const marjaQuery = marjaId ? `&marja_id=${marjaId}` : "";
+    const targetUrl = `https://api.almojib.com/ar/api/v1.1/faq/search?search=${encodedQuery}&page=${page}${marjaQuery}`;
+    const fallbackUrl = `https://almojib.com/ar/search?search=${encodedQuery}${marjaQuery}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12_000);

@@ -32,6 +32,7 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
 
   ShariaSearchStatus _status = ShariaSearchStatus.initial;
   String _activeQuery = '';
+  int? _selectedMarjaId;
   int _currentPage = 1;
   int _totalResults = 0;
   List<ShariaAnswer> _results = [];
@@ -98,7 +99,7 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
       _errorMessage = null;
     });
 
-    final response = await _service.search(query, page: 1);
+    final response = await _service.search(query, page: 1, marjaId: _selectedMarjaId);
 
     if (!mounted) return;
     setState(() {
@@ -117,7 +118,7 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
 
     setState(() => _isLoadingMore = true);
     final nextPage = _currentPage + 1;
-    final response = await _service.search(_activeQuery, page: nextPage);
+    final response = await _service.search(_activeQuery, page: nextPage, marjaId: _selectedMarjaId);
 
     if (!mounted) return;
     setState(() {
@@ -130,7 +131,8 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
   }
 
   void _openEmbeddedWebFallback() {
-    final url = _fallbackWebUrl ?? ShariaSearchService.buildWebSearchUrl(_activeQuery);
+    final url = _fallbackWebUrl ??
+        ShariaSearchService.buildWebSearchUrl(_activeQuery, marjaId: _selectedMarjaId);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -208,6 +210,55 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
                         }
                       },
                       onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 10),
+                    // Optional Marja (Religious Reference) Filter Bar
+                    SizedBox(
+                      height: 36,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: ShariaSearchService.marjaOptions.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 7),
+                        itemBuilder: (context, idx) {
+                          final opt = ShariaSearchService.marjaOptions[idx];
+                          final int? id = opt['id'] as int?;
+                          final String name = opt['name'] as String;
+                          final isSelected = _selectedMarjaId == id;
+                          return ChoiceChip(
+                            label: Text(
+                              name,
+                              style: TextStyle(
+                                fontSize: 11.8,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: accent,
+                            backgroundColor: isDark
+                                ? Colors.white.withValues(alpha: 0.06)
+                                : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? accent
+                                  : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            onSelected: _isSearching
+                                ? null
+                                : (_) {
+                                    setState(() => _selectedMarjaId = id);
+                                    if (_activeQuery.isNotEmpty ||
+                                        _searchController.text.trim().isNotEmpty) {
+                                      _performSearch();
+                                    }
+                                  },
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -433,24 +484,70 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _suggestedTopics.map((topic) {
-                  return ActionChip(
-                    label: Text(
-                      topic,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: accent,
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _suggestedTopics.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 3.35,
+                ),
+                itemBuilder: (context, index) {
+                  final topic = _suggestedTopics[index];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _performSearch(overrideQuery: topic),
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [
+                                  accent.withValues(alpha: 0.20),
+                                  accent.withValues(alpha: 0.08),
+                                ]
+                              : [
+                                  accent.withValues(alpha: 0.12),
+                                  accent.withValues(alpha: 0.04),
+                                ],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: accent.withValues(alpha: isDark ? 0.45 : 0.30),
+                          width: 1.15,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 14,
+                            color: accent,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              topic,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.4,
+                                color: isDark ? Colors.white : accent,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    backgroundColor: accent.withValues(alpha: isDark ? 0.15 : 0.08),
-                    side: BorderSide(color: accent.withValues(alpha: 0.25)),
-                    onPressed: () => _performSearch(overrideQuery: topic),
                   );
-                }).toList(),
+                },
               ),
             ],
           ),

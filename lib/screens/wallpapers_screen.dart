@@ -445,16 +445,32 @@ class _WallpaperCard extends StatelessWidget {
               fit: BoxFit.cover,
               memCacheWidth: 400,
               placeholder: (context, url) => Container(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                child: const Center(
-                  child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Color(0xFF059669),
+                color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Center(
+                      child: Opacity(
+                        opacity: 0.45,
+                        child: Image.asset(
+                          'assets/images/app_icon.png',
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                     ),
-                  ),
+                    const Center(
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Color(0xFF059669),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               errorWidget: (context, url, error) {
@@ -467,17 +483,42 @@ class _WallpaperCard extends StatelessWidget {
                     fit: BoxFit.cover,
                     memCacheWidth: 400,
                     placeholder: (_, __) => Container(
-                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                      color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
+                      child: Center(
+                        child: Opacity(
+                          opacity: 0.45,
+                          child: Image.asset(
+                            'assets/images/app_icon.png',
+                            width: 64,
+                            height: 64,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
                     ),
-                    errorWidget: (_, __, ___) => Image.asset(
-                      'assets/images/Glossy Gallery Photo Badge.png',
-                      fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => Container(
+                      color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/app_icon.png',
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                     ),
                   );
                 }
-                return Image.asset(
-                  'assets/images/Glossy Gallery Photo Badge.png',
-                  fit: BoxFit.cover,
+                return Container(
+                  color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/app_icon.png',
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 );
               },
             ),
@@ -838,15 +879,19 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
                           ),
                         ),
                       ),
-                      errorWidget: (context, url, error) => Image.asset(
-                        'assets/images/Glossy Gallery Photo Badge.png',
-                        fit: BoxFit.contain,
+                      errorWidget: (context, url, error) => Center(
+                        child: Image.asset(
+                          'assets/images/app_icon.png',
+                          width: 96,
+                          height: 96,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     )
                   : Image.asset(
                       widget.item.imageUrl.startsWith('assets/')
                           ? widget.item.imageUrl
-                          : 'assets/images/Glossy Gallery Photo Badge.png',
+                          : 'assets/images/app_icon.png',
                       fit: BoxFit.contain,
                     ),
             ),

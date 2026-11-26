@@ -610,110 +610,112 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
 
                 // 4.5. "المجيب" Card (البحث في المسائل والأجوبة الشرعية)
-                InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ShariaSearchScreen()),
-                    );
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF161E28) : const Color(0xFFEAF6FA),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF0F766E).withValues(alpha: 0.4)
-                            : const Color(0xFFBAE6FD),
-                        width: 1.2,
+                if (settings.showAlmojibCard) ...[
+                  InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ShariaSearchScreen()),
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF161E28) : const Color(0xFFEAF6FA),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF0F766E).withValues(alpha: 0.4)
+                              : const Color(0xFFBAE6FD),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF10B981).withValues(alpha: 0.16)
-                                : const Color(0xFF0284C7).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF10B981).withValues(alpha: 0.16)
+                                  : const Color(0xFF0284C7).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.question_answer_rounded,
+                              color: isDark ? const Color(0xFF10B981) : const Color(0xFF0284C7),
+                              size: 22,
+                            ),
                           ),
-                          child: Icon(
-                            Icons.question_answer_rounded,
-                            color: isDark ? const Color(0xFF10B981) : const Color(0xFF0284C7),
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'المجيب • اسأل عن المسائل الشرعية',
-                                style: TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'المجيب • اسأل عن المسائل الشرعية',
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'ابحث عن الفتاوى والأجوبة المنشورة وفق مدرسة أهل البيت (ع)',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'ابحث عن الفتاوى والأجوبة المنشورة وفق مدرسة أهل البيت (ع)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF10B981).withValues(alpha: 0.18)
-                                : const Color(0xFF0284C7).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.search_rounded,
-                                size: 15,
-                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF0284C7),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'بحث',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                                  : const Color(0xFF0284C7).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.search_rounded,
+                                  size: 15,
                                   color: isDark ? const Color(0xFF34D399) : const Color(0xFF0284C7),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 4),
+                                Text(
+                                  'بحث',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? const Color(0xFF34D399) : const Color(0xFF0284C7),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                ],
 
                 // 5. "قبس من كلام الله" Card (تتغير تلقائياً كل 7-10 ثوانٍ)
                 if (settings.showQabasBanner) ...[

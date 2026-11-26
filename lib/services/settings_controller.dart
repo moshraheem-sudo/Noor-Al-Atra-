@@ -80,6 +80,7 @@ class SettingsController extends ChangeNotifier {
   bool _showPrayerCard = true;
   bool _showEventsCard = true;
   bool _showQabasBanner = true;
+  bool _showAlmojibCard = true;
 
   // 3. Theme & Appearance
   AppThemePalette _themePalette = AppThemePalette.icyBlue;
@@ -141,6 +142,7 @@ class SettingsController extends ChangeNotifier {
   bool get showPrayerCard => _showPrayerCard;
   bool get showEventsCard => _showEventsCard;
   bool get showQabasBanner => _showQabasBanner;
+  bool get showAlmojibCard => _showAlmojibCard;
 
   AppThemePalette get themePalette => _themePalette;
   bool get smartKashida => _smartKashida;
@@ -198,6 +200,7 @@ class SettingsController extends ChangeNotifier {
     _showPrayerCard = _prefs!.getBool('settings_show_prayer_card') ?? true;
     _showEventsCard = _prefs!.getBool('settings_show_events_card') ?? true;
     _showQabasBanner = _prefs!.getBool('settings_show_qabas_banner') ?? true;
+    _showAlmojibCard = _prefs!.getBool('settings_show_almojib_card') ?? true;
 
     final paletteName = _prefs!.getString('settings_theme_palette') ?? 'icyBlue';
     if (paletteName == 'emeraldGreen') {
@@ -370,6 +373,12 @@ class SettingsController extends ChangeNotifier {
   Future<void> setShowQabasBanner(bool val) async {
     _showQabasBanner = val;
     await _prefs?.setBool('settings_show_qabas_banner', val);
+    notifyListeners();
+  }
+
+  Future<void> setShowAlmojibCard(bool val) async {
+    _showAlmojibCard = val;
+    await _prefs?.setBool('settings_show_almojib_card', val);
     notifyListeners();
   }
 

@@ -385,6 +385,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (val) => settings.setShowQabasBanner(val),
               isDark: isDark,
             ),
+            const Divider(height: 12, indent: 16, endIndent: 16),
+
+            _buildSwitchTile(
+              title: 'عرض بطاقة المجيب الشرعي',
+              subtitle: 'إظهار أو إخفاء بطاقة البحث الفوري في المسائل الشرعية بالواجهة الرئيسية',
+              value: settings.showAlmojibCard,
+              onChanged: (val) => settings.setShowAlmojibCard(val),
+              isDark: isDark,
+            ),
           ],
         ),
       ),

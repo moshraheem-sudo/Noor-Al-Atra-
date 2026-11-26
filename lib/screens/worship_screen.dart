@@ -42,6 +42,13 @@ class _WorshipScreenState extends State<WorshipScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   static final List<WorshipGridItem> _worshipGridItems = [
+    // 0. المجيب للاستفتاءات الشرعية (في البداية)
+    WorshipGridItem(
+      title: 'المجيب',
+      assetPath: '',
+      fallbackIcon: Icons.question_answer_rounded,
+      screenBuilder: (_) => const ShariaSearchScreen(),
+    ),
     // 1. مواقيت الصلاة
     WorshipGridItem(
       title: 'مواقيت الصلاة',
@@ -229,13 +236,6 @@ class _WorshipScreenState extends State<WorshipScreen> {
       assetPath: 'assets/images/worship/wallpapers.png',
       fallbackIcon: Icons.wallpaper_rounded,
       screenBuilder: (_) => const WallpapersScreen(),
-    ),
-    // 18. المجيب للاستفتاءات الشرعية
-    WorshipGridItem(
-      title: 'المجيب',
-      assetPath: '',
-      fallbackIcon: Icons.question_answer_rounded,
-      screenBuilder: (_) => const ShariaSearchScreen(),
     ),
   ];
 
