@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import Photos
 import Speech
 import AVFoundation
 
@@ -43,15 +44,52 @@ public class NoorIosBridgePlugin: NSObject, FlutterPlugin {
 
         case "setDeviceWallpaper":
             guard let args = call.arguments as? [String: Any],
-                  let filePath = args["filePath"] as? String else {
+                  let filePath = args["filePath"] as? String,
+                  let image = UIImage(contentsOfFile: filePath) else {
                 result(false)
                 return
             }
-            if let image = UIImage(contentsOfFile: filePath) {
-                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                result(true)
+
+            let saveBlock = {
+                DispatchQueue.main.async {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    result(true)
+                }
+            }
+
+            if #available(iOS 14, *) {
+                let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+                switch status {
+                case .authorized, .limited:
+                    saveBlock()
+                case .notDetermined:
+                    PHPhotoLibrary.requestAuthorization(for: .addOnly) { newStatus in
+                        if newStatus == .authorized || newStatus == .limited {
+                            saveBlock()
+                        } else {
+                            result(FlutterError(code: "PHOTOS_DENIED", message: "تم رفض إذن الوصول إلى ألبوم الصور", details: nil))
+                        }
+                    }
+                case .denied, .restricted:
+                    result(FlutterError(code: "PHOTOS_DENIED", message: "إذن ألبوم الصور مرفوض، يرجى تفعيله من إعدادات iPhone", details: nil))
+                @unknown default:
+                    result(false)
+                }
             } else {
-                result(false)
+                let status = PHPhotoLibrary.authorizationStatus()
+                if status == .authorized {
+                    saveBlock()
+                } else if status == .notDetermined {
+                    PHPhotoLibrary.requestAuthorization { newStatus in
+                        if newStatus == .authorized {
+                            saveBlock()
+                        } else {
+                            result(FlutterError(code: "PHOTOS_DENIED", message: "تم رفض إذن الوصول إلى ألبوم الصور", details: nil))
+                        }
+                    }
+                } else {
+                    result(FlutterError(code: "PHOTOS_DENIED", message: "إذن ألبوم الصور مرفوض، يرجى تفعيله من إعدادات iPhone", details: nil))
+                }
             }
 
         case "startVoiceRecognition":

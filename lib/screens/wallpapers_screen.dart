@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/wallpaper_item.dart';
@@ -451,11 +453,11 @@ class _WallpaperCard extends StatelessWidget {
                   children: [
                     Center(
                       child: Opacity(
-                        opacity: 0.45,
+                        opacity: 0.72,
                         child: Image.asset(
                           'assets/images/app_icon.png',
-                          width: 64,
-                          height: 64,
+                          width: 112,
+                          height: 112,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -486,11 +488,11 @@ class _WallpaperCard extends StatelessWidget {
                       color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
                       child: Center(
                         child: Opacity(
-                          opacity: 0.45,
+                          opacity: 0.72,
                           child: Image.asset(
                             'assets/images/app_icon.png',
-                            width: 64,
-                            height: 64,
+                            width: 112,
+                            height: 112,
                             fit: BoxFit.contain,
                           ),
                         ),
@@ -501,8 +503,8 @@ class _WallpaperCard extends StatelessWidget {
                       child: Center(
                         child: Image.asset(
                           'assets/images/app_icon.png',
-                          width: 72,
-                          height: 72,
+                          width: 120,
+                          height: 120,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -514,8 +516,8 @@ class _WallpaperCard extends StatelessWidget {
                   child: Center(
                     child: Image.asset(
                       'assets/images/app_icon.png',
-                      width: 72,
-                      height: 72,
+                      width: 120,
+                      height: 120,
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -738,6 +740,60 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
     );
   }
 
+  void _showFloatingSnackBar(String msg, {bool isSuccess = true}) {
+    if (!mounted) return;
+    final bottomMargin = MediaQuery.of(context).padding.bottom + 96;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            msg,
+            style: const TextStyle(fontFamily: 'Amiri', fontSize: 14),
+          ),
+          backgroundColor: isSuccess ? const Color(0xFF059669) : Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(bottom: bottomMargin, left: 16, right: 16),
+        ),
+      );
+  }
+
+  void _showPermissionRequiredDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text(
+            'مطلوب إذن الوصول للصور',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          content: Text(
+            Platform.isIOS
+                ? 'لحفظ الخلفية في ألبوم الصور الخاص بك على iPhone، يرجى السماح للتطبيق بالوصول إلى الصور من الإعدادات.'
+                : 'لحفظ الخلفية في معرض الصور، يرجى منح إذن التخزين/الصور للتطبيق من إعدادات الجهاز.',
+            style: const TextStyle(fontSize: 13.5, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await Geolocator.openAppSettings();
+              },
+              icon: const Icon(Icons.settings_rounded, size: 18),
+              label: const Text('فتح الإعدادات'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _applyWallpaper(String target) async {
     setState(() => _isProcessing = true);
 
@@ -748,37 +804,26 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
       if (file != null && file.existsSync()) {
         final success = await _wallpaperService.applyDeviceWallpaper(file: file, target: target);
         if (mounted) {
-          final String msg;
-          if (Platform.isIOS) {
-            msg = success
-                ? 'تم حفظ الصورة في ألبوم الصور بنجاح، يمكنك الآن تعيينها كخلفية من إعدادات iOS ✨'
-                : 'تعذر حفظ الصورة، يرجى منح إذن ألبوم الصور في إعدادات الجهاز';
+          if (!success && Platform.isIOS) {
+            _showPermissionRequiredDialog();
           } else {
-            msg = success
-                ? 'تم تعيين الخلفية بنجاح على جهازك المبارك ✨'
-                : 'تعذر تعيين الخلفية، يرجى المحاولة ثانية';
+            final String msg = Platform.isIOS
+                ? 'تم حفظ الصورة في ألبوم الصور بنجاح، يمكنك الآن تعيينها كخلفية من إعدادات iOS ✨'
+                : (success
+                    ? 'تم تعيين الخلفية بنجاح على جهازك المبارك ✨'
+                    : 'تعذر تعيين الخلفية، يرجى المحاولة ثانية');
+            _showFloatingSnackBar(msg, isSuccess: success);
           }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                msg,
-                style: const TextStyle(fontFamily: 'Amiri', fontSize: 14),
-              ),
-              backgroundColor: success ? const Color(0xFF059669) : Colors.red.shade700,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
         }
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('حدث خطأ أثناء تطبيق الخلفية: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
+    } on PlatformException catch (e) {
+      if (e.code == 'PHOTOS_DENIED') {
+        _showPermissionRequiredDialog();
+      } else {
+        _showFloatingSnackBar('حدث خطأ أثناء تطبيق الخلفية: ${e.message ?? e.code}', isSuccess: false);
       }
+    } catch (e) {
+      _showFloatingSnackBar('حدث خطأ أثناء تطبيق الخلفية: $e', isSuccess: false);
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -794,35 +839,19 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
 
       if (mounted) {
         if (savedPath != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'تم حفظ الصورة بنجاح في معرض الصور الخاص بك 📥✨',
-                style: TextStyle(fontFamily: 'Amiri', fontSize: 14),
-              ),
-              backgroundColor: const Color(0xFF059669),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          _showFloatingSnackBar('تم حفظ الصورة بنجاح في معرض الصور الخاص بك 📥✨');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('تعذر حفظ الصورة في المعرض، يرجى التحقق من الأذونات'),
-              backgroundColor: Colors.red.shade700,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          _showPermissionRequiredDialog();
         }
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('حدث خطأ أثناء تنزيل الصورة: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
+    } on PlatformException catch (e) {
+      if (e.code == 'PHOTOS_DENIED') {
+        _showPermissionRequiredDialog();
+      } else {
+        _showFloatingSnackBar('حدث خطأ أثناء تنزيل الصورة: ${e.message ?? e.code}', isSuccess: false);
       }
+    } catch (e) {
+      _showFloatingSnackBar('حدث خطأ أثناء تنزيل الصورة: $e', isSuccess: false);
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -937,9 +966,9 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
             ),
           ),
 
-          // Bottom Action Panel
+          // Bottom Action Panel (elevated safely above Android/iOS navigation bar)
           Positioned(
-            bottom: 24,
+            bottom: MediaQuery.of(context).padding.bottom + 20,
             left: 20,
             right: 20,
             child: Container(

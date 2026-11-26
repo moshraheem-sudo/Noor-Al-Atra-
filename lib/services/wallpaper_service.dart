@@ -309,11 +309,20 @@ class WallpaperService {
     }
   }
 
-  /// Copies the wallpaper image to public pictures/downloads gallery
+  /// Copies the wallpaper image to public pictures/downloads gallery (Android)
+  /// or saves directly to iOS Photos Library with permission prompt.
   Future<String?> saveWallpaperToGallery(String imageUrl, String id) async {
     try {
       final file = await downloadWallpaperFile(imageUrl, id);
       if (file == null || !file.existsSync()) return null;
+
+      if (Platform.isIOS) {
+        final saved = await ProximityWakeLockService().setDeviceWallpaper(
+          filePath: file.path,
+          target: 'both',
+        );
+        return saved ? file.path : null;
+      }
 
       Directory? targetDir;
       if (Platform.isAndroid) {

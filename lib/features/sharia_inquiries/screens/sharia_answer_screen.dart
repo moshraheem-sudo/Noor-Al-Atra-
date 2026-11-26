@@ -62,17 +62,12 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
     Share.share(buf.toString());
   }
 
-  Future<void> _openInAppSource() async {
+  Future<void> _openExternalSource() async {
     final url = widget.item.url;
     if (url == null) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ShariaWebViewFallbackScreen(
-          title: widget.item.title,
-          initialUrl: url,
-        ),
-      ),
+    await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
     );
   }
 
@@ -272,8 +267,8 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
             if (widget.item.url != null) ...[
               const SizedBox(height: 18),
               ElevatedButton.icon(
-                onPressed: _openInAppSource,
-                icon: const Icon(Icons.public_rounded, size: 19),
+                onPressed: _openExternalSource,
+                icon: const Icon(Icons.open_in_new_rounded, size: 19),
                 label: const Text(
                   'عرض المصدر الأصلي',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),

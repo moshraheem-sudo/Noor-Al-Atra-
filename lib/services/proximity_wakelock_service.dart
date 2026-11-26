@@ -100,7 +100,7 @@ class ProximityWakeLockService {
     }
   }
 
-  /// Set image as phone wallpaper (home, lock, or both)
+  /// Set image as phone wallpaper (home, lock, or both) or save to Photos on iOS
   Future<bool> setDeviceWallpaper({
     required String filePath,
     String target = 'both', // 'home', 'lock', 'both'
@@ -111,6 +111,12 @@ class ProximityWakeLockService {
         'target': target,
       });
       return res == true;
+    } on PlatformException catch (e) {
+      if (e.code == 'PHOTOS_DENIED') {
+        rethrow;
+      }
+      debugPrint('Error setting device wallpaper: $e');
+      return false;
     } catch (e) {
       debugPrint('Error setting device wallpaper: $e');
       return false;

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../services/voice_search_service.dart';
 import '../models/sharia_answer.dart';
@@ -351,17 +352,10 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
                 );
               },
               onOpenSource: item.url != null
-                  ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ShariaWebViewFallbackScreen(
-                            title: item.title,
-                            initialUrl: item.url!,
-                          ),
-                        ),
-                      );
-                    }
+                  ? () => launchUrl(
+                        Uri.parse(item.url!),
+                        mode: LaunchMode.externalApplication,
+                      )
                   : null,
             );
           },
