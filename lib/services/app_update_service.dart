@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_notification_service.dart';
 
 class AppUpdateService {
-  static const String currentVersion = '5.74.0';
+  static const String currentVersion = '5.75.0';
 
   // 1️⃣ مستودع التحديثات الرئيسي لتطبيق نور العترة
   static const String primaryRepoUrl = 'https://github.com/moshraheem-sudo/Noor-Al-Atra-';
@@ -443,54 +443,102 @@ class AppUpdateService {
                     await file.delete();
                   }
 
-                  final req = http.Request('GET', uri);
-                  final streamedRes = await client!.send(req).timeout(const Duration(minutes: 5));
+                  int received = 0;
+                  int total = 0;
+                  const int maxAttempts = 4;
+                  var lastUiUpdate = DateTime.fromMillisecondsSinceEpoch(0);
+                  bool dialogDisposed = false;
 
-                  if (streamedRes.statusCode == 200) {
-                    final total = streamedRes.contentLength ?? 0;
-                    totalMb = total > 0 ? (total / (1024 * 1024)) : 35.0; // estimate if unknown
-                    int received = 0;
+                  for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                    IOSink? sink;
+                    try {
+                      final req = http.Request('GET', uri);
+                      if (received > 0) {
+                        req.headers['Range'] = 'bytes=$received-';
+                      }
+                      final streamedRes = await client!.send(req).timeout(const Duration(seconds: 30));
 
-                    final sink = file.openWrite();
-                    await for (final chunk in streamedRes.stream) {
-                      sink.add(chunk);
-                      received += chunk.length;
-                      downloadedMb = (received / (1024 * 1024));
-                      if (total > 0) {
-                        progress = (received / total).clamp(0.0, 1.0);
+                      if (streamedRes.statusCode == 200 || streamedRes.statusCode == 206) {
+                        final isPartial = streamedRes.statusCode == 206;
+                        if (!isPartial) {
+                          received = 0;
+                          if (await file.exists()) await file.delete();
+                          total = streamedRes.contentLength ?? 0;
+                        } else if (total == 0 && streamedRes.contentLength != null) {
+                          total = received + streamedRes.contentLength!;
+                        }
+                        totalMb = total > 0 ? (total / (1024 * 1024)) : 117.0;
+
+                        sink = file.openWrite(
+                          mode: isPartial ? FileMode.append : FileMode.write,
+                        );
+
+                        await for (final chunk in streamedRes.stream.timeout(const Duration(seconds: 25))) {
+                          sink.add(chunk);
+                          received += chunk.length;
+                          downloadedMb = received / (1024 * 1024);
+                          if (total > 0) {
+                            progress = (received / total).clamp(0.0, 1.0);
+                          } else {
+                            progress = (downloadedMb / totalMb).clamp(0.0, 0.95);
+                          }
+
+                          final now = DateTime.now();
+                          if (now.difference(lastUiUpdate).inMilliseconds >= 150) {
+                            lastUiUpdate = now;
+                            if (ctx.mounted) {
+                              setDialogState(() {});
+                            } else {
+                              dialogDisposed = true;
+                              break;
+                            }
+                          }
+                        }
+
+                        await sink.flush();
+                        await sink.close();
+                        sink = null;
+
+                        if (dialogDisposed) break;
+                        if (total == 0 || received >= total) {
+                          break; // Download finished cleanly
+                        }
                       } else {
-                        progress = (downloadedMb / totalMb).clamp(0.0, 0.95);
+                        throw HttpException('رمز الاستجابة: ${streamedRes.statusCode}');
                       }
-                      setDialogState(() {});
+                    } catch (e) {
+                      await sink?.close();
+                      if (attempt == maxAttempts || dialogDisposed) rethrow;
+                      await Future.delayed(const Duration(milliseconds: 1200));
                     }
+                  }
 
-                    await sink.flush();
-                    await sink.close();
+                  if (dialogDisposed) return;
 
-                    if (await file.exists() && await file.length() > 50000) {
-                      setDialogState(() {
-                        progress = 1.0;
-                        isDownloading = false;
-                        isCompleted = true;
-                        localApkPath = file.path;
+                  if (await file.exists() && await file.length() > 50000) {
+                    setDialogState(() {
+                      progress = 1.0;
+                      isDownloading = false;
+                      isCompleted = true;
+                      localApkPath = file.path;
+                    });
+                    if (autoInstall) {
+                      // بدء التثبيت التلقائي الفوري دون الحاجة لتحويل المستخدم للخارج
+                      Future.delayed(const Duration(milliseconds: 300), () {
+                        installDownloadedApk(file.path);
                       });
-                      if (autoInstall) {
-                        // بدء التثبيت التلقائي الفوري دون الحاجة لتحويل المستخدم للخارج
-                        Future.delayed(const Duration(milliseconds: 300), () {
-                          installDownloadedApk(file.path);
-                        });
-                      }
-                    } else {
-                      throw Exception('حجم الملف المحمل غير مكتمل');
                     }
                   } else {
-                    throw Exception('تعذر التحميل (رمز الخطأ: ${streamedRes.statusCode})');
+                    throw Exception('حجم الملف المحمل غير مكتمل');
                   }
                 } catch (e) {
-                  setDialogState(() {
-                    isDownloading = false;
-                    errorMessage = e.toString();
-                  });
+                  if (ctx.mounted) {
+                    setDialogState(() {
+                      isDownloading = false;
+                      errorMessage =
+                          'انقطع الاتصال أثناء تنزيل الحزمة. يمكنك إعادة المحاولة أو التحميل عبر المتصفح.';
+                    });
+                  }
                 } finally {
                   client?.close();
                 }

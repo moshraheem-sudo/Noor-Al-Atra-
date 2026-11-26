@@ -1,11 +1,11 @@
 <div dir="rtl" align="right">
 
-# 🕌 تطبيق نور العترة (Noor Al-Atra) — الإصدار 5.74.0
+# 🕌 تطبيق نور العترة (Noor Al-Atra) — الإصدار 5.75.0
 
 تطبيق إسلامي شامل ومجاني مبني بالكامل بتقنية **Flutter & Dart**، مصمم ليعمل بكفاءة وسلاسة عالية على نظامي **Android** و **iOS (iPhone & iPad)** مع دعم كامل للتشغيل عبر **xcross** و **Xcode**، ويجمع بين مواقيت الصلاة الدقيقة وفق **مركز الكفيل للثقافة والإعلام**، القرآن الكريم، الأدعية والزيارات، **نافذة المجيب للبحث في المسائل الشرعية**، مكتبة خلفيات العتبات المقدسة، والتقويم الهجري المحدّث.
 
-[![الإصدار](https://img.shields.io/badge/الإصدار-v5.74.0-059669?style=for-the-badge)](https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/tag/5.74.0)
-[![تحميل APK](https://img.shields.io/badge/تحميل_Android-APK-1B3A57?style=for-the-badge&logo=android)](https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/download/5.74.0/Noor_Al-Atra_5.74.0.apk)
+[![الإصدار](https://img.shields.io/badge/الإصدار-v5.75.0-059669?style=for-the-badge)](https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/tag/5.75.0)
+[![تحميل APK](https://img.shields.io/badge/تحميل_Android-APK-1B3A57?style=for-the-badge&logo=android)](https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/download/5.75.0/Noor_Al-Atra_5.75.0.apk)
 [![المنصات](https://img.shields.io/badge/المنصات-Android_%7C_iOS-0284C7?style=for-the-badge&logo=flutter)](#%EF%B8%8F-متطلبات-التشغيل-والبناء)
 
 ---
@@ -125,8 +125,8 @@ xcross flutter run --wifi --no-pub
 
 ## 📦 سجل الإصدارات والتحميل
 
-- **أحدث إصدار متاح:** [v5.74.0](https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/tag/5.74.0)
-- **ملف التثبيت المباشر (Android):** [Noor_Al-Atra_5.74.0.apk](https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/download/5.74.0/Noor_Al-Atra_5.74.0.apk)
+- **أحدث إصدار متاح:** [v5.75.0](https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/tag/5.75.0)
+- **ملف التثبيت المباشر (Android):** [Noor_Al-Atra_5.75.0.apk](https://github.com/moshraheem-sudo/Noor-Al-Atra-/releases/download/5.75.0/Noor_Al-Atra_5.75.0.apk)
 
 ---
 
