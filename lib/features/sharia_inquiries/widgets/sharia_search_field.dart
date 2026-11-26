@@ -62,17 +62,19 @@ class ShariaSearchField extends StatelessWidget {
                 color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
               decoration: InputDecoration(
-                hintText: 'اكتب سؤالك الشرعي للبحث عن إجابات منشورة...',
+                hintText: 'اكتب سؤالك الشرعي للبحث عن إجابة',
+                hintMaxLines: 1,
                 hintStyle: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: 11.5,
                   color: isDark ? Colors.white54 : const Color(0xFF64748B),
                 ),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                prefixIconConstraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                 prefixIcon: Icon(
                   Icons.search_rounded,
                   color: accent,
-                  size: 22,
+                  size: 20,
                 ),
                 suffixIcon: isLoading
                     ? null

@@ -189,6 +189,7 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
                   if (widget.item.title.isNotEmpty) ...[
                     Text(
                       widget.item.title,
+                      textAlign: TextAlign.justify,
                       style: TextStyle(
                         fontSize: _fontSize + 0.5,
                         fontWeight: FontWeight.bold,
@@ -200,6 +201,7 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
                       const SizedBox(height: 8),
                       SelectableText(
                         widget.item.question,
+                        textAlign: TextAlign.justify,
                         style: TextStyle(
                           fontSize: _fontSize - 0.5,
                           height: 1.75,
@@ -254,6 +256,7 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
                   const Divider(height: 22),
                   SelectableText(
                     widget.item.answer,
+                    textAlign: TextAlign.justify,
                     style: TextStyle(
                       fontSize: _fontSize,
                       height: 1.85,

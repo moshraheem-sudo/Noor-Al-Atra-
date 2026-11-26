@@ -78,6 +78,7 @@ class ShariaResultCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   item.question,
+                  textAlign: TextAlign.justify,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -102,6 +103,7 @@ class ShariaResultCard extends StatelessWidget {
                 ),
                 child: Text(
                   item.answer,
+                  textAlign: TextAlign.justify,
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

@@ -434,6 +434,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               Expanded(
                                 child: Text(
                                   '${HijriDateService.toArabicDigits(ev.day)} $monthName - ${ev.name}',
+                                  textAlign: TextAlign.justify,
                                   style: TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: isSelectedDayEvent ? FontWeight.w800 : FontWeight.w600,
