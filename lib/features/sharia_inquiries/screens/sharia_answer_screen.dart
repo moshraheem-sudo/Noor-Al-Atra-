@@ -89,8 +89,8 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           elevation: 0,
           title: const Text(
-            'تفاصيل المسألة الشرعية',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            'المجيب',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           actions: [
             IconButton(
@@ -268,8 +268,8 @@ class _ShariaAnswerScreenState extends State<ShariaAnswerScreen> {
                 onPressed: _openInAppSource,
                 icon: const Icon(Icons.public_rounded, size: 19),
                 label: const Text(
-                  'عرض الصفحة الأصلية في المجيب (داخل التطبيق)',
-                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+                  'عرض المصدر الأصلي',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accent,

@@ -206,7 +206,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ShariaAnswerScreen), findsOneWidget);
-      expect(find.text('تفاصيل المسألة الشرعية'), findsOneWidget);
+      expect(find.text('المجيب'), findsOneWidget);
+      expect(find.text('عرض المصدر الأصلي'), findsOneWidget);
       expect(find.text('يبني على الرابعة ويأتي بركعة احتياط.'), findsOneWidget);
     });
   });
