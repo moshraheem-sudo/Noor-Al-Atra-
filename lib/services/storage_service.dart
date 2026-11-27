@@ -145,4 +145,68 @@ class StorageService {
   // Quran Reading Mode ('classic' or 'uthmani')
   String getQuranReadingMode() => _prefs?.getString('quran_reading_mode') ?? 'uthmani';
   Future<void> setQuranReadingMode(String mode) async => await _prefs?.setString('quran_reading_mode', mode);
+
+  // Favorite Reciters
+  List<int> getFavoriteReciterIds() {
+    final raw = _prefs?.getStringList('favorite_reciter_ids');
+    if (raw == null) return [];
+    return raw.map((e) => int.tryParse(e)).whereType<int>().toList();
+  }
+
+  Future<void> setFavoriteReciterIds(List<int> ids) async {
+    await _prefs?.setStringList(
+      'favorite_reciter_ids',
+      ids.map((e) => e.toString()).toList(),
+    );
+  }
+
+  // Favorite Surahs inside Reciter Styles (reciterId + styleId + styleName + surahId + surahName)
+  List<Map<String, dynamic>> getReciterSurahFavorites() {
+    final raw = _prefs?.getStringList('reciter_surah_favorites') ?? [];
+    final List<Map<String, dynamic>> result = [];
+    for (final s in raw) {
+      try {
+        final decoded = jsonDecode(s);
+        if (decoded is Map<String, dynamic>) {
+          result.add(decoded);
+        }
+      } catch (_) {}
+    }
+    return result;
+  }
+
+  Future<bool> toggleReciterSurahFavorite({
+    required int reciterId,
+    required String reciterName,
+    required int styleId,
+    required String styleName,
+    required int surahId,
+    required String surahName,
+  }) async {
+    final list = getReciterSurahFavorites();
+    final idx = list.indexWhere((e) =>
+        e['reciterId'] == reciterId &&
+        e['styleId'] == styleId &&
+        e['surahId'] == surahId);
+    bool added;
+    if (idx >= 0) {
+      list.removeAt(idx);
+      added = false;
+    } else {
+      list.insert(0, {
+        'reciterId': reciterId,
+        'reciterName': reciterName,
+        'styleId': styleId,
+        'styleName': styleName,
+        'surahId': surahId,
+        'surahName': surahName,
+      });
+      added = true;
+    }
+    await _prefs?.setStringList(
+      'reciter_surah_favorites',
+      list.map((e) => jsonEncode(e)).toList(),
+    );
+    return added;
+  }
 }

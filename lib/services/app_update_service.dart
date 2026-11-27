@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_notification_service.dart';
 
 class AppUpdateService {
-  static const String currentVersion = '5.81.0';
+  static const String currentVersion = '5.82.0';
   static bool _isSilentDownloading = false;
 
   // 1️⃣ مستودع التحديثات الرئيسي لتطبيق نور العترة
@@ -24,7 +24,6 @@ class AppUpdateService {
   static Future<void> checkUpdateSilently(BuildContext context) async {
     if (!Platform.isAndroid) return;
     Map<String, dynamic>? releaseData;
-    String targetRepoUrl = primaryRepoUrl;
 
     try {
       final primaryRes = await http.get(Uri.parse(primaryApiUrl), headers: {
@@ -33,7 +32,6 @@ class AppUpdateService {
 
       if (primaryRes.statusCode == 200) {
         releaseData = json.decode(primaryRes.body);
-        targetRepoUrl = primaryRepoUrl;
       } else {
         final fallbackRes = await http.get(Uri.parse(fallbackApiUrl), headers: {
           'Accept': 'application/vnd.github.v3+json',
@@ -41,7 +39,6 @@ class AppUpdateService {
 
         if (fallbackRes.statusCode == 200) {
           releaseData = json.decode(fallbackRes.body);
-          targetRepoUrl = fallbackRepoUrl;
         }
       }
     } catch (_) {
@@ -52,7 +49,6 @@ class AppUpdateService {
 
         if (fallbackRes.statusCode == 200) {
           releaseData = json.decode(fallbackRes.body);
-          targetRepoUrl = fallbackRepoUrl;
         }
       } catch (_) {}
     }

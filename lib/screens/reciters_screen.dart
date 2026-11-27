@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/reciter.dart';
 import '../providers/quran_provider.dart';
 import '../services/quran_audio_download_service.dart';
+import '../services/storage_service.dart';
 import 'reciter_detail_screen.dart';
 
 class RecitersScreen extends StatefulWidget {
@@ -16,7 +17,13 @@ class RecitersScreen extends StatefulWidget {
 
 class _RecitersScreenState extends State<RecitersScreen> {
   int _selectedFilterIndex = 0; // 0: الكل, 1: المفضلة, 2: المحملة
-  final Set<int> _favoriteReciterIds = {51, 112, 118, 108}; // Default popular favorites
+  final Set<int> _favoriteReciterIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _favoriteReciterIds.addAll(StorageService().getFavoriteReciterIds());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +31,9 @@ class _RecitersScreenState extends State<RecitersScreen> {
     final quran = context.watch<QuranProvider>();
     final downloadService = context.watch<QuranAudioDownloadService>();
     const allReciters = ReciterItem.popularReciters;
+    final surahFavorites = _selectedFilterIndex == 1
+        ? StorageService().getReciterSurahFavorites()
+        : const <Map<String, dynamic>>[];
 
     // Filter reciters based on selected tab
     final filteredReciters = allReciters.where((r) {
@@ -36,6 +46,9 @@ class _RecitersScreenState extends State<RecitersScreen> {
       }
       return true; // الكل
     }).toList();
+
+    final isEmptyFavorites =
+        _selectedFilterIndex == 1 && filteredReciters.isEmpty && surahFavorites.isEmpty;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -52,25 +65,33 @@ class _RecitersScreenState extends State<RecitersScreen> {
 
             // 3. Reciters List matching design exactly
             Expanded(
-              child: filteredReciters.isEmpty
+              child: (_selectedFilterIndex == 1 ? isEmptyFavorites : filteredReciters.isEmpty)
                   ? _buildEmptyState(isDark)
-                  : ListView.builder(
+                  : ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      itemCount: filteredReciters.length,
-                      itemBuilder: (context, index) {
-                        final reciter = filteredReciters[index];
-                        final isSelected = quran.selectedReciter.id == reciter.id;
-                        final isFavorite = _favoriteReciterIds.contains(reciter.id);
-
-                        return _buildReciterCard(
-                          context: context,
-                          reciter: reciter,
-                          isSelected: isSelected,
-                          isFavorite: isFavorite,
-                          isDark: isDark,
-                          quran: quran,
-                        );
-                      },
+                      children: [
+                        if (_selectedFilterIndex == 1 && surahFavorites.isNotEmpty) ...[
+                          ...surahFavorites.map((fav) => _buildFavoriteSurahCard(
+                                context: context,
+                                fav: fav,
+                                isDark: isDark,
+                                quran: quran,
+                              )),
+                          if (filteredReciters.isNotEmpty) const SizedBox(height: 6),
+                        ],
+                        ...filteredReciters.map((reciter) {
+                          final isSelected = quran.selectedReciter.id == reciter.id;
+                          final isFavorite = _favoriteReciterIds.contains(reciter.id);
+                          return _buildReciterCard(
+                            context: context,
+                            reciter: reciter,
+                            isSelected: isSelected,
+                            isFavorite: isFavorite,
+                            isDark: isDark,
+                            quran: quran,
+                          );
+                        }),
+                      ],
                     ),
             ),
           ],
@@ -256,14 +277,15 @@ class _RecitersScreenState extends State<RecitersScreen> {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
-          onTap: () {
+          onTap: () async {
             quran.selectReciter(reciter);
-            Navigator.push(
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => ReciterDetailScreen(reciter: reciter),
               ),
             );
+            if (mounted) setState(() {});
           },
           borderRadius: BorderRadius.circular(18),
           child: Padding(
@@ -333,6 +355,130 @@ class _RecitersScreenState extends State<RecitersScreen> {
                         _favoriteReciterIds.add(reciter.id);
                       }
                     });
+                    StorageService().setFavoriteReciterIds(_favoriteReciterIds.toList());
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavoriteSurahCard({
+    required BuildContext context,
+    required Map<String, dynamic> fav,
+    required bool isDark,
+    required QuranProvider quran,
+  }) {
+    final reciterId = (fav['reciterId'] as num?)?.toInt() ?? 0;
+    final styleId = (fav['styleId'] as num?)?.toInt() ?? 1;
+    final surahId = (fav['surahId'] as num?)?.toInt() ?? 1;
+    final reciterName = (fav['reciterName'] ?? '').toString();
+    final styleName = (fav['styleName'] ?? '').toString();
+    final surahName = (fav['surahName'] ?? '').toString();
+
+    final reciter = ReciterItem.popularReciters.firstWhere(
+      (r) => r.id == reciterId,
+      orElse: () => ReciterItem.popularReciters.first,
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: () async {
+            quran.selectReciter(reciter);
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ReciterDetailScreen(
+                  reciter: reciter,
+                  initialStyleId: styleId,
+                ),
+              ),
+            );
+            if (mounted) setState(() {});
+          },
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF283548) : const Color(0xFFEAF3FB),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.menu_book_rounded,
+                    color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1B3A57),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        surahName,
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F263D),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$reciterName • $styleName',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF0284C7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.bookmark_rounded,
+                    color: Color(0xFF1B3A57),
+                    size: 22,
+                  ),
+                  tooltip: 'إزالة من المفضلة',
+                  onPressed: () async {
+                    await StorageService().toggleReciterSurahFavorite(
+                      reciterId: reciterId,
+                      reciterName: reciterName,
+                      styleId: styleId,
+                      styleName: styleName,
+                      surahId: surahId,
+                      surahName: surahName,
+                    );
+                    if (mounted) setState(() {});
                   },
                 ),
               ],

@@ -7,12 +7,14 @@ import '../models/reciter.dart';
 import '../services/audio_player_manager.dart';
 import '../services/quran_api_service.dart';
 import '../services/quran_audio_download_service.dart';
+import '../services/storage_service.dart';
 import '../widgets/mini_audio_player.dart';
 
 class ReciterDetailScreen extends StatefulWidget {
   final ReciterItem reciter;
+  final int? initialStyleId;
 
-  const ReciterDetailScreen({super.key, required this.reciter});
+  const ReciterDetailScreen({super.key, required this.reciter, this.initialStyleId});
 
   @override
   State<ReciterDetailScreen> createState() => _ReciterDetailScreenState();
@@ -22,7 +24,7 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
   int _selectedStyleIndex = 0;
-  final Set<int> _bookmarkedSurahIds = {};
+  final Set<String> _bookmarkedSurahKeys = {};
 
   List<ReciterStyle> _styles = [];
   bool _isLoadingStyles = true;
@@ -30,7 +32,19 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _loadBookmarkedSurahs();
     _loadStyles();
+  }
+
+  void _loadBookmarkedSurahs() {
+    final favs = StorageService().getReciterSurahFavorites();
+    _bookmarkedSurahKeys
+      ..clear()
+      ..addAll(
+        favs
+            .where((e) => e['reciterId'] == widget.reciter.id)
+            .map((e) => '${e['styleId']}_${e['surahId']}'),
+      );
   }
 
   Future<void> _loadStyles() async {
@@ -50,6 +64,12 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
               surahList: List.generate(114, (i) => '${i + 1}').join(','),
             ),
           ];
+        }
+        if (widget.initialStyleId != null) {
+          final matchIdx = _styles.indexWhere((s) => s.id == widget.initialStyleId);
+          if (matchIdx >= 0) {
+            _selectedStyleIndex = matchIdx;
+          }
         }
         _isLoadingStyles = false;
       });
@@ -134,7 +154,8 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
                               surahId,
                               styleId: currentStyle?.id,
                             );
-                            final isBookmarked = _bookmarkedSurahIds.contains(surahId);
+                            final styleKey = '${currentStyle?.id ?? 1}_$surahId';
+                            final isBookmarked = _bookmarkedSurahKeys.contains(styleKey);
 
                             return _buildSurahCard(
                               chapter: chapter,
@@ -713,12 +734,24 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
                     size: 20,
                   ),
                   tooltip: isBookmarked ? 'إزالة من المحفوظات' : 'حفظ في المفضلة',
-                  onPressed: () {
+                  onPressed: () async {
+                    final styleId = currentStyle?.id ?? 1;
+                    final styleName = currentStyle?.name ?? 'حفص عن عاصم - مرتل';
+                    final styleKey = '${styleId}_$surahId';
+                    final added = await StorageService().toggleReciterSurahFavorite(
+                      reciterId: widget.reciter.id,
+                      reciterName: widget.reciter.name,
+                      styleId: styleId,
+                      styleName: styleName,
+                      surahId: surahId,
+                      surahName: 'سورة ${chapter.nameArabic}',
+                    );
+                    if (!mounted) return;
                     setState(() {
-                      if (isBookmarked) {
-                        _bookmarkedSurahIds.remove(surahId);
+                      if (added) {
+                        _bookmarkedSurahKeys.add(styleKey);
                       } else {
-                        _bookmarkedSurahIds.add(surahId);
+                        _bookmarkedSurahKeys.remove(styleKey);
                       }
                     });
                   },
