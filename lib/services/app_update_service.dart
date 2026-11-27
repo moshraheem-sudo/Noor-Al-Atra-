@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_notification_service.dart';
 
 class AppUpdateService {
-  static const String currentVersion = '5.82.0';
+  static const String currentVersion = '5.83.0';
   static bool _isSilentDownloading = false;
 
   // 1️⃣ مستودع التحديثات الرئيسي لتطبيق نور العترة
