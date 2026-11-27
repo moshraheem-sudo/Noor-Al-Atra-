@@ -1055,6 +1055,8 @@ class AppNotificationService {
   /// Cancel Sticky Prayer Notification
   Future<void> cancelStickyPrayerNotification() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('sticky_active', false);
       await ProximityWakeLockService().cancelCustomPrayerNotification();
       if (_isInitialized) {
         await _localNotifications.cancel(id: 1003);

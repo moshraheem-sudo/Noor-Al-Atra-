@@ -269,9 +269,14 @@ class PrayerProvider extends ChangeNotifier {
     });
   }
 
+  void syncStickyNotificationNow() => _syncStickyNotification();
+
   void _syncStickyNotification() {
+    if (!SettingsController().stickyPrayerNotification) {
+      AppNotificationService().cancelStickyPrayerNotification();
+      return;
+    }
     if (_prayerTimes == null) return;
-    if (!SettingsController().stickyPrayerNotification) return;
     AppNotificationService().updateStickyPrayerTimesNotification(
       fajr: _prayerTimes!.fajr,
       sunrise: _prayerTimes!.sunrise,

@@ -1149,7 +1149,12 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
                 activeTrackColor: colors.switchActiveTrack,
                 inactiveThumbColor: colors.switchInactiveThumb,
                 inactiveTrackColor: colors.switchInactiveTrack,
-                onChanged: (val) => settings.setStickyPrayerNotification(val),
+                onChanged: (val) async {
+                  await settings.setStickyPrayerNotification(val);
+                  if (val && context.mounted) {
+                    context.read<PrayerProvider>().syncStickyNotificationNow();
+                  }
+                },
               ),
             ],
           ),

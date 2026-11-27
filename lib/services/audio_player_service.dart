@@ -110,6 +110,7 @@ class AudioPlayerService extends ChangeNotifier {
     }
 
     _stateSub = _player.onPlayerStateChanged.listen((state) {
+      if (_isTransitioningTrack && state == PlayerState.stopped) return;
       _playerState = state;
       notifyListeners();
     }, onError: (e) {
@@ -381,9 +382,11 @@ class AudioPlayerService extends ChangeNotifier {
       _playerState = PlayerState.playing;
       notifyListeners();
 
-      try {
-        await _player.stop();
-      } catch (_) {}
+      if (_player.state == PlayerState.playing || _player.state == PlayerState.paused) {
+        try {
+          await _player.stop();
+        } catch (_) {}
+      }
 
       if (generation != _playGeneration) return;
       final rawUrl = track.url.trim();

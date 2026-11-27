@@ -8,7 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_notification_service.dart';
 
 class AppUpdateService {
-  static const String currentVersion = '5.80.0';
+  static const String currentVersion = '5.81.0';
+  static bool _isSilentDownloading = false;
 
   // 1️⃣ مستودع التحديثات الرئيسي لتطبيق نور العترة
   static const String primaryRepoUrl = 'https://github.com/moshraheem-sudo/Noor-Al-Atra-';
@@ -58,8 +59,6 @@ class AppUpdateService {
 
     if (releaseData != null && context.mounted) {
       final String tagName = (releaseData['tag_name'] ?? '').toString().replaceAll('v', '').trim();
-      final String body = (releaseData['body'] ?? 'تحديث جديد يتضمن تحسينات عامة وميزات إضافية.').toString();
-      final String htmlUrl = (releaseData['html_url'] ?? targetRepoUrl).toString();
 
       String? apkDownloadUrl;
       if (releaseData['assets'] is List) {
@@ -72,19 +71,100 @@ class AppUpdateService {
         }
       }
 
-      if (_isNewerVersion(tagName, currentVersion) && context.mounted) {
-        // إرسال إشعار فوري إلى شريط الإشعارات بالنظام
-        AppNotificationService().showAppUpdateNotification(newVersion: tagName, changelog: body);
-
-        // بدء نافذة التنزيل التلقائي المباشر داخلياً بدون فتح متصفح خارجي
-        _showLiveApkDownloadModal(
-          context,
-          apkDownloadUrl ?? htmlUrl,
-          'تطبيق نور العترة v$tagName',
-          htmlUrl,
-          autoInstall: true,
-        );
+      if (_isNewerVersion(tagName, currentVersion) && apkDownloadUrl != null && context.mounted) {
+        // تحديث صامت في الخلفية بدون أي نافذة منبثقة تزعج المستخدم
+        if (!_isSilentDownloading) {
+          _isSilentDownloading = true;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFF1B3A57),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+              content: Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'جاري تحديث التطبيق بصمت إلى v$tagName...',
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 12.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+          _downloadAndInstallSilently(apkDownloadUrl, tagName);
+        }
       }
+    }
+  }
+
+  static Future<void> _downloadAndInstallSilently(String apkUrl, String tagName) async {
+    final client = http.Client();
+    try {
+      final uri = Uri.parse(apkUrl);
+      const updateRepos = {'noor-al-atra-', 'myapp-updates'};
+      final segments = uri.pathSegments;
+      if (uri.scheme != 'https' ||
+          uri.host != 'github.com' ||
+          uri.userInfo.isNotEmpty ||
+          uri.hasPort ||
+          segments.length != 6 ||
+          segments[0].toLowerCase() != 'moshraheem-sudo' ||
+          !updateRepos.contains(segments[1].toLowerCase()) ||
+          segments[2] != 'releases' ||
+          segments[3] != 'download' ||
+          !RegExp(r'^[a-zA-Z0-9_.-]+\.apk$', caseSensitive: false).hasMatch(segments[5])) {
+        return;
+      }
+
+      final cacheDir = await getTemporaryDirectory();
+      final tempDir = await Directory('${cacheDir.path}/apk-updates').create(recursive: true);
+      final file = File('${tempDir.path}/${segments[5]}');
+      if (await file.exists()) await file.delete();
+
+      int received = 0;
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        IOSink? sink;
+        try {
+          final req = http.Request('GET', uri);
+          if (received > 0) req.headers['Range'] = 'bytes=$received-';
+          final res = await client.send(req).timeout(const Duration(seconds: 30));
+          if (res.statusCode == 200 || res.statusCode == 206) {
+            final isPartial = res.statusCode == 206;
+            if (!isPartial) {
+              received = 0;
+              if (await file.exists()) await file.delete();
+            }
+            sink = file.openWrite(mode: isPartial ? FileMode.append : FileMode.write);
+            await for (final chunk in res.stream.timeout(const Duration(seconds: 25))) {
+              sink.add(chunk);
+              received += chunk.length;
+            }
+            await sink.flush();
+            await sink.close();
+            if (await file.exists() && await file.length() > 1000000) {
+              const channel = MethodChannel('com.example.flutter_noor_alatra/wakelock');
+              await channel.invokeMethod('installApk', {'filePath': file.path});
+              return;
+            }
+          }
+        } catch (_) {
+          try {
+            await sink?.close();
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      debugPrint('Silent update error: $e');
+    } finally {
+      client.close();
+      _isSilentDownloading = false;
     }
   }
 
