@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/prayer_provider.dart';
 import '../services/settings_controller.dart';
 import '../services/storage_service.dart';
-import '../services/data_service.dart';
 import '../models/city_location.dart';
 import 'prayer_settings_screen.dart';
 
@@ -36,15 +35,15 @@ class PrayerTimesScreen extends StatefulWidget {
         String searchQuery = '';
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final allSystemCities = DataService().cities;
             final savedGpsCities = StorageService().getSavedGpsCities();
             final Set<String> seenIds = {};
             final combinedList = <CityLocation>[];
             for (final c in savedGpsCities) {
               if (seenIds.add(c.id)) combinedList.add(c);
             }
-            for (final c in allSystemCities) {
-              if (seenIds.add(c.id)) combinedList.add(c);
+            if (prayer.selectedCity.id.startsWith('gps_') &&
+                seenIds.add(prayer.selectedCity.id)) {
+              combinedList.add(prayer.selectedCity);
             }
 
             final filteredCities = searchQuery.isEmpty
@@ -82,17 +81,21 @@ class PrayerTimesScreen extends StatefulWidget {
                       // Title
                       Row(
                         children: [
-                          const Icon(Icons.gps_fixed_rounded, color: Color(0xFF0284C7)),
+                          const Icon(Icons.gps_fixed_rounded, color: Color(0xFF0284C7), size: 20),
                           const SizedBox(width: 8),
-                          Text(
-                            'المواقع المحفوظة في النظام',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16.5,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          Expanded(
+                            child: Text(
+                              'المواقع المحفوظة',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15.5,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
@@ -102,11 +105,11 @@ class PrayerTimesScreen extends StatefulWidget {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.offline_pin_rounded, size: 14, color: Color(0xFF0284C7)),
+                                Icon(Icons.offline_pin_rounded, size: 13, color: Color(0xFF0284C7)),
                                 SizedBox(width: 4),
                                 Text(
-                                  'نظام GPS بدون إنترنت',
-                                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                                  'GPS بدون إنترنت',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
                                 ),
                               ],
                             ),
@@ -178,7 +181,9 @@ class PrayerTimesScreen extends StatefulWidget {
                               SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'تحديد الموقع الحالي تلقائياً عبر GPS وحفظه',
+                                  'تحديد وحفظ الموقع الحالي (GPS)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -197,7 +202,7 @@ class PrayerTimesScreen extends StatefulWidget {
                         // Search Field
                         TextField(
                           decoration: InputDecoration(
-                            hintText: 'ابحث باسم المدينة أو المحافظة (مثال: الكوت، بغداد، النجف)...',
+                            hintText: 'ابحث في المواقع المحفوظة...',
                             hintStyle: TextStyle(fontSize: 12.5, color: isDark ? Colors.white54 : Colors.grey),
                             prefixIcon: const Icon(Icons.search, size: 20),
                             suffixIcon: searchQuery.isNotEmpty
@@ -226,7 +231,7 @@ class PrayerTimesScreen extends StatefulWidget {
                         Align(
                           alignment: Alignment.centerRight,
                           child: Text(
-                            'المحافظات والمدن المتاحة (${filteredCities.length}):',
+                            'المواقع المحفوظة (${filteredCities.length}):',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -356,7 +361,9 @@ class PrayerTimesScreen extends StatefulWidget {
                                           children: [
                                             const SizedBox(height: 2),
                                             Text(
-                                              '${item.countryAr} • خط العرض: ${item.latitude.toStringAsFixed(3)}° • خط الطول: ${item.longitude.toStringAsFixed(3)}°',
+                                              '${item.countryAr} • ${item.latitude.toStringAsFixed(2)}°, ${item.longitude.toStringAsFixed(2)}°',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: isDark ? Colors.white54 : Colors.grey.shade600,
@@ -368,9 +375,9 @@ class PrayerTimesScreen extends StatefulWidget {
                                                 Icon(Icons.offline_pin, size: 12, color: Color(0xFF166534)),
                                                 SizedBox(width: 4),
                                                 Text(
-                                                  'محفوظ في النظام • متاح بدون إنترنت',
+                                                  'محفوظ • بدون إنترنت',
                                                   style: TextStyle(
-                                                    fontSize: 9.5,
+                                                    fontSize: 10,
                                                     fontWeight: FontWeight.bold,
                                                     color: Color(0xFF166534),
                                                   ),

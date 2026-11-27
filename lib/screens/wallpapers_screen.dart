@@ -905,14 +905,42 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
                           ),
                         ),
                       ),
-                      errorWidget: (context, url, error) => Center(
-                        child: Image.asset(
-                          'assets/images/app_icon.png',
-                          width: 96,
-                          height: 96,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
+                      errorWidget: (context, url, error) {
+                        final thumb = widget.item.thumbnailUrl;
+                        if (thumb.isNotEmpty && thumb != url && WallpaperItem.httpsUri(thumb) != null) {
+                          return CachedNetworkImage(
+                            imageUrl: thumb,
+                            httpHeaders: const {'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 NoorAlAtra/1.0'},
+                            fit: BoxFit.contain,
+                            placeholder: (_, __) => const Center(
+                              child: SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                  color: Color(0xFF059669),
+                                ),
+                              ),
+                            ),
+                            errorWidget: (_, __, ___) => Center(
+                              child: Image.asset(
+                                'assets/images/app_icon.png',
+                                width: 96,
+                                height: 96,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          );
+                        }
+                        return Center(
+                          child: Image.asset(
+                            'assets/images/app_icon.png',
+                            width: 96,
+                            height: 96,
+                            fit: BoxFit.contain,
+                          ),
+                        );
+                      },
                     )
                   : Image.asset(
                       widget.item.imageUrl.startsWith('assets/')

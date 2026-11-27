@@ -1,105 +1,5 @@
 [
   {
-    "id": "askari_samarra_golden_dome",
-    "title": "القبة الذهبية لحرم الإمامين العسكريين (ع) في سامراء",
-    "category": "العتبة العسكرية",
-    "imageUrl": "https://alaskarian.net/localfile/logo.png",
-    "thumbnailUrl": "https://alaskarian.net/localfile/logo.png",
-    "sourceName": "العتبة العسكرية المقدسة",
-    "sourceUrl": "https://alaskarian.net/gallery?id=1",
-    "tags": [
-      "العتبة العسكرية",
-      "الإمام الهادي",
-      "الإمام العسكري",
-      "سامراء"
-    ],
-    "views": 3300,
-    "likes": 1780
-  },
-  {
-    "id": "abbas_holy_minaret",
-    "title": "منارة العتبة العباسية المقدسة وسماء كربلاء",
-    "category": "العتبة العباسية",
-    "imageUrl": "https://main.pictures.alkafeel.net/storage/photos/8/medium/13.jpg",
-    "thumbnailUrl": "https://main.pictures.alkafeel.net/storage/photos/8/medium/13.jpg",
-    "sourceName": "شبكة الكفيل العالمية",
-    "sourceUrl": "https://pic.alkafeel.net/tag/14?lang=ar",
-    "tags": [
-      "العتبة العباسية",
-      "أبو الفضل العباس",
-      "المنارة الشريفة"
-    ],
-    "views": 4100,
-    "likes": 2100
-  },
-  {
-    "id": "abbas_holy_dome_night",
-    "title": "قبة قمر بني هاشم أبي الفضل العباس (ع) ليلاً",
-    "category": "العتبة العباسية",
-    "imageUrl": "https://main.pictures.alkafeel.net/storage/photos/9/medium/14.jpg",
-    "thumbnailUrl": "https://main.pictures.alkafeel.net/storage/photos/9/medium/14.jpg",
-    "sourceName": "شبكة الكفيل العالمية",
-    "sourceUrl": "https://pic.alkafeel.net/tag/14?lang=ar",
-    "tags": [
-      "العتبة العباسية",
-      "أبو الفضل العباس",
-      "كربلاء",
-      "قمر بني هاشم"
-    ],
-    "views": 5200,
-    "likes": 2900
-  },
-  {
-    "id": "ali_courtyard_peace",
-    "title": "صحن أمير المؤمنين (ع) الشريف وساعة الحرم",
-    "category": "العتبة العلوية",
-    "imageUrl": "https://media.imamali.net/files/22/01/05/r58hg3.png",
-    "thumbnailUrl": "https://media.imamali.net/files/22/01/05/r58hg3.png",
-    "sourceName": "العتبة العلوية المقدسة",
-    "sourceUrl": "https://media.imamali.net/?id=322",
-    "tags": [
-      "العتبة العلوية",
-      "أمير المؤمنين",
-      "الصحن الشريف"
-    ],
-    "views": 3120,
-    "likes": 1650
-  },
-  {
-    "id": "ali_golden_iwan",
-    "title": "إيوان الذهب وضريح الإمام علي (ع) في النجف الأشرف",
-    "category": "العتبة العلوية",
-    "imageUrl": "https://media.imamali.net/files/22/01/05/r58oup.png",
-    "thumbnailUrl": "https://media.imamali.net/files/22/01/05/r58oup.png",
-    "sourceName": "العتبة العلوية المقدسة",
-    "sourceUrl": "https://media.imamali.net/?id=322",
-    "tags": [
-      "العتبة العلوية",
-      "أمير المؤمنين",
-      "إيوان الذهب",
-      "النجف"
-    ],
-    "views": 3900,
-    "likes": 1980
-  },
-  {
-    "id": "ali_harem_gold_dome",
-    "title": "القبة الذهبية لحرم أمير المؤمنين علي بن أبي طالب (ع)",
-    "category": "العتبة العلوية",
-    "imageUrl": "https://media.imamali.net/files/22/01/05/r58lai.png",
-    "thumbnailUrl": "https://media.imamali.net/files/22/01/05/r58lai.png",
-    "sourceName": "العتبة العلوية المقدسة",
-    "sourceUrl": "https://media.imamali.net/?id=322",
-    "tags": [
-      "العتبة العلوية",
-      "أمير المؤمنين",
-      "النجف الأشرف",
-      "القبة الذهبية"
-    ],
-    "views": 4800,
-    "likes": 2350
-  },
-  {
     "id": "hussain_5",
     "title": "إحدى ليالي الجمعة",
     "category": "العتبة الحسينية",
@@ -12187,23 +12087,6 @@
       "خلفيات"
     ],
     "views": 2411,
-    "likes": 0
-  },
-  {
-    "id": "hussain_715",
-    "title": "العتبة العلوية - لقطة مباركة",
-    "category": "العتبة العلوية",
-    "imageUrl": "https://pic.imamhussain.org/photos/hd/1230205136.jpg",
-    "thumbnailUrl": "https://pic.imamhussain.org/photos/1230205136.jpg",
-    "sourceName": "العتبة الحسينية المقدسة",
-    "sourceUrl": "https://pic.imamhussain.org",
-    "tags": [
-      "العتبة العلوية",
-      "عتبات",
-      "مراقد",
-      "خلفيات"
-    ],
-    "views": 2601,
     "likes": 0
   },
   {
