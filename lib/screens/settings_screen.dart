@@ -1592,8 +1592,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildInfoTableRow('سنة الإصدار والتوثيق', '2026 م - 1448 هـ', isDark),
                   const Divider(height: 14),
                   _buildInfoTableRow(
-                    'قواعد بيانات التفاسير',
-                    'تفسير الميزان والصافي (Furqan Apps • CC BY-ND 4.0)',
+                    'المصادر والتوثيق',
+                    'تقويم ومناسبات أهل البيت (ع) • القرآن الكريم ومواقيت الصلاة',
                     isDark,
                   ),
                 ],

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import '../models/person.dart';
@@ -5,6 +6,7 @@ import '../models/hijri_event.dart';
 import '../models/worship_item.dart';
 import '../models/worship_audio.dart';
 import '../models/city_location.dart';
+import 'shia_events_service.dart';
 
 class DataService {
   static final DataService _instance = DataService._internal();
@@ -31,6 +33,10 @@ class DataService {
       events = (ahlalbaytJson['events'] as List<dynamic>? ?? [])
           .map((e) => HijriEvent.fromJson(e as Map<String, dynamic>))
           .toList();
+
+      // دمج أحداث ومناسبات أهل البيت (ع) المنتقاة عبر theshia.org محلياً وسحابياً
+      ShiaEventsService.mergeStoredEvents(events);
+      unawaited(ShiaEventsService.syncRemoteEvents());
 
       // 2. Worship Audios
       final audiosStr = await rootBundle.loadString('assets/data/worship_audios.json');

@@ -454,32 +454,16 @@ class _WallpaperCard extends StatelessWidget {
               fit: BoxFit.cover,
               memCacheWidth: 400,
               placeholder: (context, url) => Container(
-                color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Center(
-                      child: Opacity(
-                        opacity: 0.72,
-                        child: Image.asset(
-                          'assets/images/app_icon.png',
-                          width: 112,
-                          height: 112,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                child: const Center(
+                  child: SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Color(0xFF059669),
                     ),
-                    const Center(
-                      child: SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Color(0xFF059669),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               errorWidget: (context, url, error) {
@@ -492,40 +476,37 @@ class _WallpaperCard extends StatelessWidget {
                     fit: BoxFit.cover,
                     memCacheWidth: 400,
                     placeholder: (_, __) => Container(
-                      color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
-                      child: Center(
-                        child: Opacity(
-                          opacity: 0.72,
-                          child: Image.asset(
-                            'assets/images/app_icon.png',
-                            width: 112,
-                            height: 112,
-                            fit: BoxFit.contain,
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 26,
+                          height: 26,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Color(0xFF059669),
                           ),
                         ),
                       ),
                     ),
                     errorWidget: (_, __, ___) => Container(
-                      color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
                       child: Center(
-                        child: Image.asset(
-                          'assets/images/app_icon.png',
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.contain,
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 34,
+                          color: isDark ? Colors.white30 : Colors.black26,
                         ),
                       ),
                     ),
                   );
                 }
                 return Container(
-                  color: isDark ? const Color(0xFF0B1914) : const Color(0xFFE2E8F0),
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
                   child: Center(
-                    child: Image.asset(
-                      'assets/images/app_icon.png',
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.contain,
+                    child: Icon(
+                      Icons.image_not_supported_outlined,
+                      size: 34,
+                      color: isDark ? Colors.white30 : Colors.black26,
                     ),
                   ),
                 );
@@ -875,6 +856,54 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
     if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  Widget _buildViewerErrorWidget() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.image_not_supported_outlined,
+              size: 50,
+              color: Colors.white38,
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'تعذر تحميل الصورة بدقة عالية',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'يرجى التحقق من اتصال الإنترنت ثم إعادة المحاولة',
+              style: TextStyle(
+                color: Colors.white60,
+                fontSize: 12.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => setState(() {}),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('إعادة المحاولة'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF059669),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -910,7 +939,7 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
                         if (thumb.isNotEmpty && thumb != url && WallpaperItem.httpsUri(thumb) != null) {
                           return CachedNetworkImage(
                             imageUrl: thumb,
-                            httpHeaders: const {'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 NoorAlAtra/1.0'},
+                            httpHeaders: const {'User-Agent': 'NoorAlAtra/1.0'},
                             fit: BoxFit.contain,
                             placeholder: (_, __) => const Center(
                               child: SizedBox(
@@ -922,24 +951,10 @@ class _FullscreenWallpaperViewerState extends State<_FullscreenWallpaperViewer> 
                                 ),
                               ),
                             ),
-                            errorWidget: (_, __, ___) => Center(
-                              child: Image.asset(
-                                'assets/images/app_icon.png',
-                                width: 96,
-                                height: 96,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
+                            errorWidget: (_, __, ___) => _buildViewerErrorWidget(),
                           );
                         }
-                        return Center(
-                          child: Image.asset(
-                            'assets/images/app_icon.png',
-                            width: 96,
-                            height: 96,
-                            fit: BoxFit.contain,
-                          ),
-                        );
+                        return _buildViewerErrorWidget();
                       },
                     )
                   : Image.asset(

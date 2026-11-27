@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/data_service.dart';
 import '../services/hijri_date_service.dart';
+import '../services/shia_events_service.dart';
 import '../services/settings_controller.dart';
 import '../models/hijri_event.dart';
 import 'qibla_compass_screen.dart';
@@ -297,7 +298,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
               body: RefreshIndicator(
                 color: const Color(0xFF0284C7),
                 onRefresh: () async {
-                  await HijriDateService.syncHijriFromRepository(force: true);
+                  await Future.wait([
+                    HijriDateService.syncHijriFromRepository(force: true),
+                    ShiaEventsService.syncRemoteEvents(force: true),
+                  ]);
                   _refreshCurrentHijriDate();
                 },
                 child: ListView(
@@ -533,7 +537,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           duration: Duration(seconds: 1),
                         ),
                       );
-                      await HijriDateService.syncHijriFromRepository(force: true);
+                      await Future.wait([
+                        HijriDateService.syncHijriFromRepository(force: true),
+                        ShiaEventsService.syncRemoteEvents(force: true),
+                      ]);
                       _refreshCurrentHijriDate();
                     },
                   ),

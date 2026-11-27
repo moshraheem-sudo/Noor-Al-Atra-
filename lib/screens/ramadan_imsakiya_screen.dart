@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/city_location.dart';
-import '../models/prayer_times.dart';
 import '../providers/prayer_provider.dart';
 import '../services/data_service.dart';
 import '../services/hijri_date_service.dart';
@@ -403,6 +402,11 @@ class _RamadanImsakiyaScreenState extends State<RamadanImsakiyaScreen> {
             style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 16),
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.location_on_outlined),
+              tooltip: 'تغيير المدينة: ${city.nameAr}',
+              onPressed: _showCityPickerSheet,
+            ),
             IconButton(
               icon: const Icon(Icons.download_rounded),
               tooltip: 'تنزيل الإمساكية',

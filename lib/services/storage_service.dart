@@ -210,16 +210,4 @@ class StorageService {
     return added;
   }
 
-  // --- Tafseer Preferences & Storage ---
-  List<String> getTafseerFavoritesRaw() => _prefs?.getStringList('tafseer_favorites') ?? [];
-  Future<void> setTafseerFavoritesRaw(List<String> list) async =>
-      await _prefs?.setStringList('tafseer_favorites', list);
-
-  String? getTafseerLastPositionRaw() => _prefs?.getString('tafseer_last_position');
-  Future<void> setTafseerLastPositionRaw(String jsonStr) async =>
-      await _prefs?.setString('tafseer_last_position', jsonStr);
-
-  double getTafseerFontSize() => _prefs?.getDouble('tafseer_font_size') ?? 18.0;
-  Future<void> setTafseerFontSize(double size) async =>
-      await _prefs?.setDouble('tafseer_font_size', size);
 }

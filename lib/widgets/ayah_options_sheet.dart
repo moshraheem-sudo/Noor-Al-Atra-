@@ -6,8 +6,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/quran_chapter.dart';
 import '../models/quran_sajdah.dart';
-import '../models/tafseer_model.dart';
-import '../screens/tafseer/tafseer_reader_screen.dart';
 import 'quran_verse_share_sheet.dart';
 
 /// نافذة خيارات الآية (ModalBottomSheet)
@@ -310,19 +308,7 @@ class AyahOptionsSheet extends StatelessWidget {
                 },
               ),
 
-              // 7) تفسير الآية (الميزان والصافي)
-              _buildOptionTile(
-                context: context,
-                isDark: isDark,
-                icon: Icons.menu_book_rounded,
-                iconColor: const Color(0xFF059669),
-                title: 'تفسير الآية',
-                subtitle: 'عرض تفسير الآية في تفسير الميزان أو تفسير الصافي',
-                onTap: () {
-                  Navigator.pop(context);
-                  _showTafseerChoiceDialog(context);
-                },
-              ),
+
             ],
           ),
         ),
@@ -330,186 +316,6 @@ class AyahOptionsSheet extends StatelessWidget {
     );
   }
 
-  void _showTafseerChoiceDialog(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF059669).withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.menu_book_rounded, color: Color(0xFF059669), size: 22),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'اختر التفسير المعتمد',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'سورة ${chapter.nameArabic} • الآية ${_toArabicDigits(ayahNum)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Choice 1: الميزان في تفسير القرآن
-                _buildTafseerChoiceTile(
-                  context: context,
-                  isDark: isDark,
-                  type: TafseerType.almizan,
-                  themeColor: const Color(0xFF0284C7),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TafseerReaderScreen(
-                          type: TafseerType.almizan,
-                          surahNumber: chapter.id,
-                          initialAyahNumber: ayahNum,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Choice 2: تفسير الصافي
-                _buildTafseerChoiceTile(
-                  context: context,
-                  isDark: isDark,
-                  type: TafseerType.safi,
-                  themeColor: const Color(0xFF059669),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TafseerReaderScreen(
-                          type: TafseerType.safi,
-                          surahNumber: chapter.id,
-                          initialAyahNumber: ayahNum,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTafseerChoiceTile({
-    required BuildContext context,
-    required bool isDark,
-    required TafseerType type,
-    required Color themeColor,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: themeColor.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: themeColor.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.auto_stories_rounded, color: themeColor, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        type.displayName,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        type.author,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFD4AF37),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.arrow_back_ios_new_rounded, size: 14, color: themeColor),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Future<void> _shareAyahAudio(BuildContext context) async {
     final arabicAyah = _toArabicDigits(ayahNum);

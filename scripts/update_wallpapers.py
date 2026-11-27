@@ -99,89 +99,19 @@ def main():
         except Exception as e:
             print(f"Notice on page {page}: {e}")
 
-    # Step 2: Add high-quality curated wallpapers for Imam Ali & Al-Askari shrines
-    curated_additional = [
-        # Imam Ali Shrine
-        {
-            "id": "ali_harem_gold_dome",
-            "title": "القبة الذهبية لحرم أمير المؤمنين علي بن أبي طالب (ع)",
-            "category": "العتبة العلوية",
-            "imageUrl": "https://media.imamali.net/files/22/01/05/r58lai.png",
-            "thumbnailUrl": "https://media.imamali.net/files/22/01/05/r58lai.png",
-            "sourceName": "العتبة العلوية المقدسة",
-            "sourceUrl": "https://media.imamali.net/?id=322",
-            "tags": ["العتبة العلوية", "أمير المؤمنين", "النجف الأشرف", "القبة الذهبية"],
-            "views": 4800,
-            "likes": 2350
-        },
-        {
-            "id": "ali_golden_iwan",
-            "title": "إيوان الذهب وضريح الإمام علي (ع) في النجف الأشرف",
-            "category": "العتبة العلوية",
-            "imageUrl": "https://media.imamali.net/files/22/01/05/r58oup.png",
-            "thumbnailUrl": "https://media.imamali.net/files/22/01/05/r58oup.png",
-            "sourceName": "العتبة العلوية المقدسة",
-            "sourceUrl": "https://media.imamali.net/?id=322",
-            "tags": ["العتبة العلوية", "أمير المؤمنين", "إيوان الذهب", "النجف"],
-            "views": 3900,
-            "likes": 1980
-        },
-        {
-            "id": "ali_courtyard_peace",
-            "title": "صحن أمير المؤمنين (ع) الشريف وساعة الحرم",
-            "category": "العتبة العلوية",
-            "imageUrl": "https://media.imamali.net/files/22/01/05/r58hg3.png",
-            "thumbnailUrl": "https://media.imamali.net/files/22/01/05/r58hg3.png",
-            "sourceName": "العتبة العلوية المقدسة",
-            "sourceUrl": "https://media.imamali.net/?id=322",
-            "tags": ["العتبة العلوية", "أمير المؤمنين", "الصحن الشريف"],
-            "views": 3120,
-            "likes": 1650
-        },
-        # Al-Abbas Shrine (Alkafeel)
-        {
-            "id": "abbas_holy_dome_night",
-            "title": "قبة قمر بني هاشم أبي الفضل العباس (ع) ليلاً",
-            "category": "العتبة العباسية",
-            "imageUrl": "https://main.pictures.alkafeel.net/storage/photos/9/medium/14.jpg",
-            "thumbnailUrl": "https://main.pictures.alkafeel.net/storage/photos/9/medium/14.jpg",
-            "sourceName": "شبكة الكفيل العالمية",
-            "sourceUrl": "https://pic.alkafeel.net/tag/14?lang=ar",
-            "tags": ["العتبة العباسية", "أبو الفضل العباس", "كربلاء", "قمر بني هاشم"],
-            "views": 5200,
-            "likes": 2900
-        },
-        {
-            "id": "abbas_holy_minaret",
-            "title": "منارة العتبة العباسية المقدسة وسماء كربلاء",
-            "category": "العتبة العباسية",
-            "imageUrl": "https://main.pictures.alkafeel.net/storage/photos/8/medium/13.jpg",
-            "thumbnailUrl": "https://main.pictures.alkafeel.net/storage/photos/8/medium/13.jpg",
-            "sourceName": "شبكة الكفيل العالمية",
-            "sourceUrl": "https://pic.alkafeel.net/tag/14?lang=ar",
-            "tags": ["العتبة العباسية", "أبو الفضل العباس", "المنارة الشريفة"],
-            "views": 4100,
-            "likes": 2100
-        },
-        # Al-Askari Shrine (Samarra)
-        {
-            "id": "askari_samarra_golden_dome",
-            "title": "القبة الذهبية لحرم الإمامين العسكريين (ع) في سامراء",
-            "category": "العتبة العسكرية",
-            "imageUrl": "https://alaskarian.net/localfile/logo.png",
-            "thumbnailUrl": "https://alaskarian.net/localfile/logo.png",
-            "sourceName": "العتبة العسكرية المقدسة",
-            "sourceUrl": "https://alaskarian.net/gallery?id=1",
-            "tags": ["العتبة العسكرية", "الإمام الهادي", "الإمام العسكري", "سامراء"],
-            "views": 3300,
-            "likes": 1780
-        }
-    ]
-
-    for item in curated_additional:
-        if item["imageUrl"] not in seen_urls:
-            seen_urls.add(item["imageUrl"])
-            wallpapers.insert(0, item)
+    # Fetch latest curated wallpapers from official repository
+    repo_url = "https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/wallpapers.json"
+    try:
+        print("Syncing with official Islamic-Shrines-Wallpapers repository...")
+        req = urllib.request.Request(repo_url, headers=headers)
+        resp = urllib.request.urlopen(req, timeout=15, context=ctx)
+        repo_data = json.loads(resp.read().decode('utf-8'))
+        repo_items = repo_data if isinstance(repo_data, list) else repo_data.get('items', [])
+        if repo_items and len(repo_items) > 100:
+            print(f"Loaded {len(repo_items)} verified wallpapers from official repository.")
+            wallpapers = repo_items
+    except Exception as e:
+        print(f"Could not fetch official repository, using collected items: {e}")
 
     print(f"Total wallpapers assembled: {len(wallpapers)}")
 

@@ -15,7 +15,19 @@ List<WallpaperItem> _parseWallpapers(String body) {
   if (items is! List) return [];
   return items.whereType<Map<String, dynamic>>()
       .map(WallpaperItem.fromJson)
-      .where((item) => item.id.isNotEmpty && item.imageUrl.isNotEmpty)
+      .where((item) {
+        if (item.id.isEmpty || item.imageUrl.isEmpty) return false;
+        // Filter out broken/placeholder links from legacy builds
+        if (item.imageUrl.contains('r58oup.png') ||
+            item.imageUrl.contains('r58hg3.png') ||
+            item.imageUrl.contains('photos/9/medium/14.jpg') ||
+            item.imageUrl.contains('photos/8/medium/13.jpg') ||
+            item.imageUrl.contains('alaskarian.net/localfile/logo.png') ||
+            item.imageUrl.contains('r58lai.png')) {
+          return false;
+        }
+        return true;
+      })
       .toList(growable: false);
 }
 
@@ -51,9 +63,9 @@ class WallpaperService {
     'architecture': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/architecture.json',
   };
 
-  static const String _prefsCacheKey = 'cached_islamic_wallpapers_v5';
-  static const String _prefsVersionKey = 'cached_islamic_version_v5';
-  static const String _prefsLastSyncKey = 'cached_islamic_last_sync_v5';
+  static const String _prefsCacheKey = 'cached_islamic_wallpapers_v6';
+  static const String _prefsVersionKey = 'cached_islamic_version_v6';
+  static const String _prefsLastSyncKey = 'cached_islamic_last_sync_v6';
 
   List<WallpaperItem> _cachedList = [];
 
