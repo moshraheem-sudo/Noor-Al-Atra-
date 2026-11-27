@@ -85,7 +85,10 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
           chapter.nameSimple.toLowerCase().contains(_searchQuery.trim().toLowerCase());
     }).toList();
 
-    final downloadedCount = downloadService.getCachedDownloadedCount(widget.reciter.id);
+    final downloadedCount = downloadService.getCachedDownloadedCount(
+      widget.reciter.id,
+      styleId: currentStyle?.id,
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -102,7 +105,7 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
             _buildSearchBox(isDark),
 
             // 4. Download Full Quran Card (0 / 114 سورة)
-            _buildDownloadCard(context, downloadedCount, downloadService, isDark),
+            _buildDownloadCard(context, downloadedCount, downloadService, isDark, currentStyle),
 
             // 5. Surah Items List
             Expanded(
@@ -123,9 +126,14 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
 
                             final isPlayingThis = player.isPlaying &&
                                 player.currentSurahId == surahId &&
-                                player.currentReciter?.id == widget.reciter.id;
+                                player.currentReciter?.id == widget.reciter.id &&
+                                (currentStyle == null || player.currentStyle?.id == currentStyle.id);
 
-                            final isDownloaded = downloadService.isSurahDownloaded(widget.reciter.id, surahId);
+                            final isDownloaded = downloadService.isSurahDownloaded(
+                              widget.reciter.id,
+                              surahId,
+                              styleId: currentStyle?.id,
+                            );
                             final isBookmarked = _bookmarkedSurahIds.contains(surahId);
 
                             return _buildSurahCard(
@@ -293,8 +301,10 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
     int downloadedCount,
     QuranAudioDownloadService downloadService,
     bool isDark,
+    ReciterStyle? currentStyle,
   ) {
     final isThisReciterActive = downloadService.currentReciter?.id == widget.reciter.id &&
+        (currentStyle == null || downloadService.currentStyleId == currentStyle.id) &&
         (downloadService.isDownloading || downloadService.isPaused);
 
     if (isThisReciterActive) {
@@ -533,8 +543,16 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
     required AudioPlayerManager player,
     required QuranAudioDownloadService downloadService,
   }) {
-    final isDownloading = downloadService.isSurahDownloading(widget.reciter.id, surahId);
-    final downloadProgress = downloadService.getSurahDownloadProgress(widget.reciter.id, surahId);
+    final isDownloading = downloadService.isSurahDownloading(
+      widget.reciter.id,
+      surahId,
+      styleId: currentStyle?.id,
+    );
+    final downloadProgress = downloadService.getSurahDownloadProgress(
+      widget.reciter.id,
+      surahId,
+      styleId: currentStyle?.id,
+    );
     final isSharing = _sharingSurahIds.contains(surahId);
 
     return Container(
@@ -595,7 +613,11 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
                       if (isPlaying) {
                         player.togglePlayPause();
                       } else {
-                        final localPath = downloadService.getLocalSurahPath(widget.reciter.id, surahId);
+                        final localPath = downloadService.getLocalSurahPath(
+                          widget.reciter.id,
+                          surahId,
+                          styleId: currentStyle?.id,
+                        );
                         player.playSurah(
                           surahId: surahId,
                           reciter: widget.reciter,
@@ -676,6 +698,7 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
                               reciter: widget.reciter,
                               surahId: surahId,
                               serverUrl: currentStyle?.server ?? widget.reciter.defaultServer,
+                              styleId: currentStyle?.id,
                             );
                           },
                   ),
@@ -718,7 +741,11 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
     try {
       setState(() => _sharingSurahIds.add(surahId));
 
-      String? localPath = downloadService.getLocalSurahPath(widget.reciter.id, surahId);
+      String? localPath = downloadService.getLocalSurahPath(
+        widget.reciter.id,
+        surahId,
+        styleId: currentStyle?.id,
+      );
       if (localPath == null || !await File(localPath).exists()) {
         // Download audio first in background
         if (mounted) {
@@ -734,10 +761,15 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
           reciter: widget.reciter,
           surahId: surahId,
           serverUrl: currentStyle?.server ?? widget.reciter.defaultServer,
+          styleId: currentStyle?.id,
         );
 
         if (success) {
-          localPath = downloadService.getLocalSurahPath(widget.reciter.id, surahId);
+          localPath = downloadService.getLocalSurahPath(
+            widget.reciter.id,
+            surahId,
+            styleId: currentStyle?.id,
+          );
         }
       }
 
@@ -778,12 +810,16 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
       builder: (ctx) {
         return Consumer<QuranAudioDownloadService>(
           builder: (context, dService, _) {
-            final isActive = dService.currentReciter?.id == widget.reciter.id &&
-                (dService.isDownloading || dService.isPaused);
-            final downloadedCount = dService.getCachedDownloadedCount(widget.reciter.id);
             final selectedStyle = _styles.isNotEmpty && _selectedStyleIndex < _styles.length
                 ? _styles[_selectedStyleIndex]
                 : null;
+            final isActive = dService.currentReciter?.id == widget.reciter.id &&
+                (selectedStyle == null || dService.currentStyleId == selectedStyle.id) &&
+                (dService.isDownloading || dService.isPaused);
+            final downloadedCount = dService.getCachedDownloadedCount(
+              widget.reciter.id,
+              styleId: selectedStyle?.id,
+            );
             final styleLabel = selectedStyle != null ? ' - ${selectedStyle.displayName}' : '';
 
             if (isActive) {
@@ -936,6 +972,7 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
                       dService.startBatchDownload(
                         widget.reciter,
                         serverUrl: selectedStyle?.server ?? widget.reciter.defaultServer,
+                        styleId: selectedStyle?.id,
                       );
                     },
                   ),
@@ -945,7 +982,10 @@ class _ReciterDetailScreenState extends State<ReciterDetailScreen> {
                     label: const Text('حذف الملفات المحملة', style: TextStyle(color: Colors.redAccent)),
                     onPressed: () {
                       Navigator.pop(ctx);
-                      dService.deleteReciterAudio(widget.reciter.id);
+                      dService.deleteReciterAudio(
+                        widget.reciter.id,
+                        styleId: selectedStyle?.id,
+                      );
                     },
                   ),
               ],

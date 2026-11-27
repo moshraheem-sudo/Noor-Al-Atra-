@@ -40,14 +40,6 @@ class MiniAudioPlayer extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        // Only display in Quran context if this is a Quran track
-        final isQuranTrack = track.category == 'quran_surah' ||
-            track.category == 'quran_verse' ||
-            player.currentSurahId != null;
-        if (!isQuranTrack) {
-          return const SizedBox.shrink();
-        }
-
         final isPlaying = player.isPlaying;
         final surahTitle = track.title.isNotEmpty ? track.title : (player.currentSurahName ?? 'القرآن الكريم');
         final reciterSubtitle = track.subtitle.isNotEmpty ? track.subtitle : (player.currentReciter?.name ?? 'القارئ');

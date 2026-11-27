@@ -35,7 +35,7 @@ class AdhanAudioService : Service() {
         const val EXTRA_MUEZZIN_NAME = "extra_muezzin_name"
 
         const val CHANNEL_ID = "adhan_live_audio_channel_v6"
-        const val NOTIFICATION_ID = 4001
+        const val NOTIFICATION_ID = 4099
 
         @Volatile
         var isPlaying: Boolean = false
@@ -46,7 +46,27 @@ class AdhanAudioService : Service() {
         @Volatile
         var currentPrayerName: String = "الصلاة"
 
+        private var activeService: AdhanAudioService? = null
+
+        fun isPrayerAllowed(context: Context, prayerName: String): Boolean {
+            if (prayerName.contains("تجربة")) return true
+            val key = when {
+                prayerName.contains("فجر") -> "fajr"
+                prayerName.contains("ظهر") -> "dhuhr"
+                prayerName.contains("عصر") -> "asr"
+                prayerName.contains("مغرب") -> "maghrib"
+                prayerName.contains("عشاء") -> "isha"
+                else -> return false
+            }
+            val settings = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val enabled = settings.getBoolean("flutter.settings_notify_$key", true)
+            val stoppedUntil = context.getSharedPreferences("adhan_playback", Context.MODE_PRIVATE)
+                .getLong("stopped_until_$key", 0L)
+            return enabled && System.currentTimeMillis() >= stoppedUntil
+        }
+
         fun startAdhan(context: Context, prayerName: String, muezzinPath: String? = null, muezzinName: String? = null) {
+            if (!isPrayerAllowed(context, prayerName)) return
             currentPrayerName = prayerName
             val intent = Intent(context, AdhanAudioService::class.java).apply {
                 action = ACTION_PLAY
@@ -66,14 +86,14 @@ class AdhanAudioService : Service() {
         }
 
         fun stopAdhan(context: Context) {
-            val intent = Intent(context, AdhanAudioService::class.java).apply {
-                action = ACTION_STOP
-            }
-            try {
-                context.startService(intent)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            // Stop in this process immediately: no activity launch or service-start
+            // restriction should delay a notification tap.
+            val keys = listOf("fajr", "dhuhr", "asr", "maghrib", "isha")
+            val editor = context.getSharedPreferences("adhan_playback", Context.MODE_PRIVATE).edit()
+            for (key in keys) editor.putLong("stopped_until_$key", System.currentTimeMillis() + 90000L)
+            editor.apply()
+            activeService?.stopAdhanAudio()
+            context.stopService(Intent(context, AdhanAudioService::class.java))
         }
 
         fun toggleVolume(context: Context) {
@@ -104,6 +124,11 @@ class AdhanAudioService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        activeService = this
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -166,16 +191,6 @@ class AdhanAudioService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val openAppIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val openAppPendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            openAppIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         val largeIconBitmap: Bitmap? = try {
             BitmapFactory.decodeResource(resources, R.drawable.app_icon)
                 ?: run {
@@ -200,7 +215,7 @@ class AdhanAudioService : Service() {
         val contentStatusText = if (isVolumeLowered) {
             "حان الآن موعد صلاة $prayerName (الصوت مخفّض 🔉 • مستمر)"
         } else {
-            "حان الآن موعد صلاة $prayerName"
+            "حان الآن موعد صلاة $prayerName • المس لإيقاف الأذان"
         }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -208,8 +223,7 @@ class AdhanAudioService : Service() {
             .setLargeIcon(largeIconBitmap)
             .setContentTitle("أذان $prayerName المبارك 🕌")
             .setContentText(contentStatusText)
-            .setContentIntent(openAppPendingIntent)
-            .setFullScreenIntent(openAppPendingIntent, true) // Pops up immediately on screen (heads-up / lockscreen)
+            .setContentIntent(stopPendingIntent)
             .setOngoing(false)
             .setAutoCancel(true)
             .setDeleteIntent(stopPendingIntent)
@@ -232,14 +246,19 @@ class AdhanAudioService : Service() {
 
     private fun playAdhanAudio(prayerName: String, muezzinPath: String?, muezzinName: String) {
         // If already playing this Adhan, do NOT cut off and do NOT restart!
-        if (isPlaying && mediaPlayer?.isPlaying == true) {
+        if (isPlaying) {
             Log.d("AdhanAudioService", "Adhan is already playing continuously, ignoring duplicate trigger.")
             return
         }
 
+        if (!isPrayerAllowed(this, prayerName)) {
+            stopSelf()
+            return
+        }
+        stopAdhanAudio()
+        isPlaying = true // Includes preparation, so the in-app stop card stays available.
         isVolumeLowered = false
         currentPrayerName = prayerName
-        stopAdhanAudio()
 
         try {
             val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -313,6 +332,11 @@ class AdhanAudioService : Service() {
                 }
 
                 setOnPreparedListener { mp ->
+                    if (mediaPlayer !== mp || !isPrayerAllowed(this@AdhanAudioService, prayerName)) {
+                        stopAdhanAudio()
+                        stopSelf()
+                        return@setOnPreparedListener
+                    }
                     val vol = if (isVolumeLowered) 0.2f else 1.0f
                     mp.setVolume(vol, vol)
                     mp.start()
@@ -343,20 +367,19 @@ class AdhanAudioService : Service() {
     }
 
     private fun stopAdhanAudio() {
+        val player = mediaPlayer
+        mediaPlayer = null
+        AdhanAudioService.isPlaying = false
+        AdhanAudioService.isVolumeLowered = false
         try {
-            mediaPlayer?.let {
-                if (it.isPlaying) {
-                    it.stop()
-                }
-                it.reset()
-                it.release()
-            }
+            // release() also works while preparing. Querying isPlaying/stop in
+            // that state can throw and leave a pending player alive.
+            player?.setOnPreparedListener(null)
+            player?.setOnCompletionListener(null)
+            player?.setOnErrorListener(null)
+            player?.release()
         } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            mediaPlayer = null
-            AdhanAudioService.isPlaying = false
-            AdhanAudioService.isVolumeLowered = false
+            Log.e("AdhanAudioService", "Failed to release Adhan player", e)
         }
 
         try {
@@ -417,6 +440,7 @@ class AdhanAudioService : Service() {
     }
 
     override fun onDestroy() {
+        if (activeService === this) activeService = null
         stopAdhanAudio()
         super.onDestroy()
     }

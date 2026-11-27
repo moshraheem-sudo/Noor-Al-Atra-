@@ -27,6 +27,11 @@ class AdhanSchedulerService {
 
   final AudioPlayer _adhanPlayer = AudioPlayer();
   Timer? _schedulerTimer;
+  int _playbackGeneration = 0;
+  bool _startingPlayback = false;
+  DateTime? _stoppedUntil;
+  bool _checkingPrayers = false;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
   String? _currentAdhanPrayerName;
 
   /// Reactive Notifiers for In-App UI & Home Screen Banner
@@ -45,6 +50,13 @@ class AdhanSchedulerService {
   String? get currentAdhanPrayerName => currentAdhanPrayerNotifier.value;
 
   void init() {
+    _playerStateSubscription ??= _adhanPlayer.onPlayerStateChanged.listen((state) {
+      if (!_startingPlayback && !Platform.isAndroid &&
+          (state == PlayerState.completed || state == PlayerState.stopped)) {
+        _clearPlaybackState();
+        unawaited(AppNotificationService().cancelAdhanNotifications());
+      }
+    });
     _startSchedulerLoop();
     syncAdhanPlayingState();
     _checkAndTriggerPrayers();
@@ -67,6 +79,8 @@ class AdhanSchedulerService {
 
   /// Syncs active playing state between native Android AdhanAudioService and Dart
   Future<bool> syncAdhanPlayingState() async {
+    final generation = _playbackGeneration;
+    if (_startingPlayback) return true;
     bool playing = false;
     String? prayerName;
 
@@ -87,6 +101,8 @@ class AdhanSchedulerService {
         }
       } catch (_) {}
     }
+
+    if (generation != _playbackGeneration || _startingPlayback) return isPlayingAdhan;
 
     if (!playing && _adhanPlayer.state == PlayerState.playing) {
       playing = true;
@@ -126,6 +142,16 @@ class AdhanSchedulerService {
   }
 
   Future<void> _checkAndTriggerPrayers() async {
+    if (_checkingPrayers) return;
+    _checkingPrayers = true;
+    try {
+      await _checkPrayers();
+    } finally {
+      _checkingPrayers = false;
+    }
+  }
+
+  Future<void> _checkPrayers() async {
     final now = DateTime.now();
     final todayKey = '${now.year}_${now.month}_${now.day}';
     final savedCity = StorageService().getSavedCity() ?? CityLocation.defaultCity;
@@ -193,14 +219,14 @@ class AdhanSchedulerService {
 
       // 1. 10 Minutes Reminder (between 9m 45s and 10m 15s)
       final alertKey10 = '${pKey}_10_$todayKey';
-      if (diffSec >= 585 && diffSec <= 615 && !_firedAlerts.contains(alertKey10)) {
+      if (settings.notifyPrePrayer15Min && diffSec >= 585 && diffSec <= 615 && !_firedAlerts.contains(alertKey10)) {
         _firedAlerts.add(alertKey10);
         AppNotificationService().showApproachingPrayerNotification(pName, 10);
       }
 
       // 2. 5 Minutes Reminder (between 4m 45s and 5m 15s)
       final alertKey5 = '${pKey}_5_$todayKey';
-      if (diffSec >= 285 && diffSec <= 315 && !_firedAlerts.contains(alertKey5)) {
+      if (settings.notifyPrePrayer15Min && diffSec >= 285 && diffSec <= 315 && !_firedAlerts.contains(alertKey5)) {
         _firedAlerts.add(alertKey5);
         AppNotificationService().showApproachingPrayerNotification(pName, 5);
       }
@@ -209,12 +235,10 @@ class AdhanSchedulerService {
       final alertKey0 = '${pKey}_0_$todayKey';
       if (diffSec >= -15 && diffSec <= 15 && !_firedAlerts.contains(alertKey0)) {
         _firedAlerts.add(alertKey0);
-        if (pKey != 'sunrise') {
-          ProximityWakeLockService().isAdhanPlaying().then((playing) {
-            if (!playing) {
-              playAdhan(prayerName: pName, muezzinId: settings.getMuezzinForPrayer(pKey));
-            }
-          });
+        // Android's native alarm is the sole automatic audio owner. A Dart
+        // fallback racing it could restart an adhan after the user stops it.
+        if (pKey != 'sunrise' && !Platform.isAndroid) {
+          await playAdhan(prayerName: pName, muezzinId: settings.getMuezzinForPrayer(pKey));
         }
       }
 
@@ -243,6 +267,14 @@ class AdhanSchedulerService {
     required String prayerName,
     String? muezzinId,
   }) async {
+    final isPreview = prayerName.contains('تجربة');
+    bool permitted() => isPreview ||
+        (SettingsController().isPrayerNotificationEnabled(prayerName) &&
+         (_stoppedUntil == null || DateTime.now().isAfter(_stoppedUntil!)));
+    if (!permitted() || _startingPlayback || isPlayingAdhan) return;
+    final generation = ++_playbackGeneration;
+    bool cancelled() => generation != _playbackGeneration || !permitted();
+    _startingPlayback = true;
     try {
       _currentAdhanPrayerName = prayerName;
       isPlayingAdhanNotifier.value = true;
@@ -257,9 +289,12 @@ class AdhanSchedulerService {
 
       final localPath = await MuezzinDownloadService().getLocalMuezzinPath(muezzin.id);
 
+      if (cancelled()) return;
+
       // 1. On Android, launch native Android Foreground Adhan Service (forces audio through ALARM stream)
       if (Platform.isAndroid) {
         final alreadyPlaying = await ProximityWakeLockService().isAdhanPlaying();
+        if (cancelled()) return;
         if (alreadyPlaying) {
           debugPrint('Native Adhan is already playing continuously, ignoring duplicate request.');
           return;
@@ -272,7 +307,7 @@ class AdhanSchedulerService {
         );
       } else {
         // Fallback for non-Android: use flutter audioplayer
-        AppNotificationService().showAdhanNotification(
+        await AppNotificationService().showAdhanNotification(
           prayerName: prayerName,
           muezzinName: muezzin.name,
         );
@@ -291,7 +326,9 @@ class AdhanSchedulerService {
           await _adhanPlayer.setVolume(1.0);
         } catch (_) {}
 
+        if (cancelled()) return;
         await _adhanPlayer.stop();
+        if (cancelled()) return;
         if (localPath != null) {
           await _adhanPlayer.play(DeviceFileSource(localPath));
         } else if (muezzin.id == 'amer_kazemi') {
@@ -300,26 +337,38 @@ class AdhanSchedulerService {
           try {
             await _adhanPlayer.play(UrlSource(muezzin.cdnUrl));
           } catch (_) {
+            if (cancelled()) return;
             await _adhanPlayer.play(AssetSource('audio/adhan.mp3'));
           }
         }
       }
 
-      _adhanPlayer.onPlayerStateChanged.listen((state) {
-        if (state == PlayerState.completed || state == PlayerState.stopped) {
-          _currentAdhanPrayerName = null;
-          isPlayingAdhanNotifier.value = false;
-          isVolumeLoweredNotifier.value = false;
-          currentAdhanPrayerNotifier.value = null;
-        }
-      });
+      if (cancelled()) {
+        if (Platform.isAndroid) await ProximityWakeLockService().stopNativeAdhan();
+        await _adhanPlayer.stop();
+      }
+
     } catch (e) {
       debugPrint('Error playing adhan: $e');
-      _currentAdhanPrayerName = null;
-      isPlayingAdhanNotifier.value = false;
-      isVolumeLoweredNotifier.value = false;
-      currentAdhanPrayerNotifier.value = null;
+      if (generation == _playbackGeneration) _clearPlaybackState();
+    } finally {
+      _startingPlayback = false;
+      if (cancelled()) {
+        _clearPlaybackState();
+        try {
+          await AppNotificationService().cancelAdhanNotifications();
+        } catch (e) {
+          debugPrint('Error removing adhan controls: $e');
+        }
+      }
     }
+  }
+
+  void _clearPlaybackState() {
+    _currentAdhanPrayerName = null;
+    currentAdhanPrayerNotifier.value = null;
+    isPlayingAdhanNotifier.value = false;
+    isVolumeLoweredNotifier.value = false;
   }
 
   String _getStoredMuezzinId({String? prayerName}) {
@@ -353,19 +402,18 @@ class AdhanSchedulerService {
 
   /// Stop current adhan immediately
   Future<void> stopAdhan() async {
-    try {
-      if (Platform.isAndroid) {
-        await ProximityWakeLockService().stopNativeAdhan();
-      }
-      await _adhanPlayer.stop();
-      _currentAdhanPrayerName = null;
-      isPlayingAdhanNotifier.value = false;
-      isVolumeLoweredNotifier.value = false;
-      currentAdhanPrayerNotifier.value = null;
-      await AppNotificationService().cancelAdhanNotifications();
-    } catch (e) {
-      debugPrint('Error stopping adhan: $e');
+    ++_playbackGeneration; // Invalidate file lookup / audio preparation in flight.
+    _stoppedUntil = DateTime.now().add(const Duration(seconds: 90));
+    _clearPlaybackState();
+    // Each cleanup runs independently; one failure must not prevent the others.
+    Future<void> attempt(Future<void> Function() action) async {
+      try { await action(); } catch (e) { debugPrint('Error stopping adhan: $e'); }
     }
+    await Future.wait([
+      if (Platform.isAndroid) attempt(() => ProximityWakeLockService().stopNativeAdhan()),
+      attempt(() => _adhanPlayer.stop()),
+      attempt(() => AppNotificationService().cancelAdhanNotifications()),
+    ]);
   }
 
   /// Test Adhan Ringing and Notification
@@ -445,6 +493,7 @@ class AdhanSchedulerService {
 
   void dispose() {
     _schedulerTimer?.cancel();
+    _playerStateSubscription?.cancel();
     _adhanPlayer.dispose();
   }
 }

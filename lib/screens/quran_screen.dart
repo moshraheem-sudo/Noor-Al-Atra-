@@ -13,7 +13,6 @@ import '../widgets/ayah_number_symbol.dart';
 import 'quran_reader_screen.dart';
 import 'reciters_screen.dart';
 import 'khatma_screen.dart';
-import '../widgets/mini_audio_player.dart';
 
 class QuranScreen extends StatefulWidget {
   const QuranScreen({super.key});
@@ -416,9 +415,6 @@ class _QuranScreenState extends State<QuranScreen> {
                 ],
               ),
             ),
-
-            // Floating Mini Audio Player Banner
-            const MiniAudioPlayer(),
 
             // Custom 3-Tab Bottom Bar matching Image 1
             _buildCustomBottomBar(isDark),

@@ -59,6 +59,8 @@ class AudioPlayerService extends ChangeNotifier {
   String? currentReciterName;
   bool isContinuousQuranPlayback = false;
   bool _isTransitioningTrack = false;
+  int _playGeneration = 0;
+  bool get isLoading => _isTransitioningTrack;
 
   AudioTrackInfo? get currentTrack => _currentTrack;
   PlayerState get playerState => _playerState;
@@ -97,9 +99,6 @@ class AudioPlayerService extends ChangeNotifier {
           ),
           iOS: AudioContextIOS(
             category: AVAudioSessionCategory.playback,
-            options: const {
-              AVAudioSessionOptions.mixWithOthers,
-            },
           ),
         ),
       );
@@ -350,6 +349,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> playTrack(AudioTrackInfo track) async {
+    final generation = ++_playGeneration;
     _isTransitioningTrack = true;
     try {
       if (track.category != 'quran_verse' && track.category != 'quran_surah') {
@@ -377,6 +377,7 @@ class AudioPlayerService extends ChangeNotifier {
 
       _currentTrack = track;
       _position = Duration.zero;
+      _duration = Duration.zero;
       _playerState = PlayerState.playing;
       notifyListeners();
 
@@ -384,6 +385,7 @@ class AudioPlayerService extends ChangeNotifier {
         await _player.stop();
       } catch (_) {}
 
+      if (generation != _playGeneration) return;
       final rawUrl = track.url.trim();
       if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         await _player.play(UrlSource(_sanitizeUrl(rawUrl)));
@@ -401,24 +403,36 @@ class AudioPlayerService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Audio playback error: $e');
-      _playerState = PlayerState.stopped;
+      if (generation == _playGeneration) _playerState = PlayerState.stopped;
     } finally {
-      _isTransitioningTrack = false;
-      notifyListeners();
+      if (generation == _playGeneration) {
+        _isTransitioningTrack = false;
+        _playerState = _player.state;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> pause() async {
     try {
       await _player.pause();
+      _playerState = _player.state;
+      notifyListeners();
     } catch (e) {
       debugPrint('Audio pause error: $e');
     }
   }
 
   Future<void> resume() async {
+    if (_currentTrack == null) return;
+    if (_playerState == PlayerState.completed || _playerState == PlayerState.stopped) {
+      await playTrack(_currentTrack!);
+      return;
+    }
     try {
       await _player.resume();
+      _playerState = _player.state;
+      notifyListeners();
     } catch (e) {
       debugPrint('Audio resume error: $e');
     }
@@ -433,20 +447,29 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> seek(Duration pos) async {
+    if (_currentTrack == null || _duration <= Duration.zero) return;
+    final target = Duration(milliseconds: pos.inMilliseconds.clamp(0, _duration.inMilliseconds));
     try {
-      await _player.seek(pos);
+      await _player.seek(target);
+      _position = target;
+      notifyListeners();
     } catch (e) {
       debugPrint('Audio seek error: $e');
     }
   }
 
   Future<void> stop() async {
+    ++_playGeneration;
+    _isTransitioningTrack = false;
     try {
       await _player.stop();
     } catch (e) {
       debugPrint('Audio stop error: $e');
     }
     _currentTrack = null;
+    _playerState = PlayerState.stopped;
+    _position = Duration.zero;
+    _duration = Duration.zero;
     isContinuousQuranPlayback = false;
     currentSurahId = null;
     currentAyahNum = null;

@@ -25,18 +25,21 @@ class QuranAudioDownloadService extends ChangeNotifier {
   bool _isPaused = false;
   bool _isCancelled = false;
   ReciterItem? _currentReciter;
+  int? _currentStyleId;
   int _currentSurahIndex = 0; // 1..114
   String _currentSurahName = '';
   int _downloadedCountInBatch = 0;
   double _progress = 0.0;
   String? _statusMessage;
 
-  final Map<int, int> _downloadedCounts = {}; // reciterId -> count of downloaded surahs
-  final Map<String, double> _singleSurahProgress = {}; // "reciterId:surahId" -> progress 0.0..1.0
+  final Map<int, int> _downloadedCounts = {}; // reciterId -> total count across styles
+  final Map<String, int> _styleDownloadedCounts = {}; // "reciterId:styleId" -> count
+  final Map<String, double> _singleSurahProgress = {}; // key -> progress 0.0..1.0
 
   bool get isDownloading => _isDownloading;
   bool get isPaused => _isPaused;
   ReciterItem? get currentReciter => _currentReciter;
+  int? get currentStyleId => _currentStyleId;
   int get currentSurahIndex => _currentSurahIndex;
   String get currentSurahName => _currentSurahName;
   int get downloadedCountInBatch => _downloadedCountInBatch;
@@ -44,54 +47,91 @@ class QuranAudioDownloadService extends ChangeNotifier {
   String? get statusMessage => _statusMessage;
 
   String? _baseAudioDirPath;
-  final Set<String> _downloadedSurahKeys = {}; // "reciterId:surahId"
+  final Set<String> _downloadedSurahKeys = {}; // "reciterId:styleKey:surahId"
 
-  bool isSurahDownloading(int reciterId, int surahId) {
-    return _singleSurahProgress.containsKey('$reciterId:$surahId');
+  String _surahKey(int reciterId, int surahId, {int? styleId}) =>
+      '$reciterId:${styleId ?? 'default'}:$surahId';
+
+  String _styleCountKey(int reciterId, int styleId) => '$reciterId:$styleId';
+
+  bool isSurahDownloading(int reciterId, int surahId, {int? styleId}) {
+    return _singleSurahProgress.containsKey(_surahKey(reciterId, surahId, styleId: styleId));
   }
 
-  double? getSurahDownloadProgress(int reciterId, int surahId) {
-    return _singleSurahProgress['$reciterId:$surahId'];
+  double? getSurahDownloadProgress(int reciterId, int surahId, {int? styleId}) {
+    return _singleSurahProgress[_surahKey(reciterId, surahId, styleId: styleId)];
   }
 
   Future<void> _init() async {
     await refreshDownloadedCounts();
   }
 
-  Future<Directory> _getReciterDir(int reciterId) async {
+  Future<Directory> _getReciterDir(int reciterId, {int? styleId}) async {
     final docs = await getApplicationDocumentsDirectory();
     _baseAudioDirPath = '${docs.path}/quran_audio';
-    final dir = Directory('$_baseAudioDirPath/$reciterId');
+    final path = styleId != null
+        ? '$_baseAudioDirPath/$reciterId/style_$styleId'
+        : '$_baseAudioDirPath/$reciterId';
+    final dir = Directory(path);
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
     return dir;
   }
 
-  /// Refreshes the downloaded surahs count for all popular reciters
+  /// Refreshes the downloaded surahs count for all reciters and styles
   Future<void> refreshDownloadedCounts() async {
     try {
       final docs = await getApplicationDocumentsDirectory();
       _baseAudioDirPath = '${docs.path}/quran_audio';
       _downloadedSurahKeys.clear();
+      _downloadedCounts.clear();
+      _styleDownloadedCounts.clear();
 
-      for (final r in ReciterItem.popularReciters) {
-        final dir = Directory('$_baseAudioDirPath/${r.id}');
-        if (await dir.exists()) {
-          final files = dir.listSync().whereType<File>().where((f) {
+      final baseDir = Directory(_baseAudioDirPath!);
+      if (await baseDir.exists()) {
+        for (final entity in baseDir.listSync().whereType<Directory>()) {
+          final folderName = entity.uri.pathSegments.where((s) => s.isNotEmpty).lastOrNull ?? '';
+          final reciterId = int.tryParse(folderName);
+          if (reciterId == null) continue;
+
+          int totalForReciter = 0;
+
+          // 1. Legacy/default root files for this reciter
+          final rootFiles = entity.listSync().whereType<File>().where((f) {
             return f.path.endsWith('.mp3') && f.lengthSync() > 2048;
           }).toList();
-          for (final f in files) {
+          for (final f in rootFiles) {
             final fileName = f.uri.pathSegments.last;
-            final numPart = fileName.replaceAll('.mp3', '');
-            final surahId = int.tryParse(numPart);
+            final surahId = int.tryParse(fileName.replaceAll('.mp3', ''));
             if (surahId != null) {
-              _downloadedSurahKeys.add('${r.id}:$surahId');
+              _downloadedSurahKeys.add(_surahKey(reciterId, surahId));
             }
           }
-          _downloadedCounts[r.id] = files.length;
-        } else {
-          _downloadedCounts[r.id] = 0;
+          totalForReciter += rootFiles.length;
+
+          // 2. Style-specific subdirectories (style_<id>)
+          for (final sub in entity.listSync().whereType<Directory>()) {
+            final subName = sub.uri.pathSegments.where((s) => s.isNotEmpty).lastOrNull ?? '';
+            if (!subName.startsWith('style_')) continue;
+            final styleId = int.tryParse(subName.substring('style_'.length));
+            if (styleId == null) continue;
+
+            final styleFiles = sub.listSync().whereType<File>().where((f) {
+              return f.path.endsWith('.mp3') && f.lengthSync() > 2048;
+            }).toList();
+            for (final f in styleFiles) {
+              final fileName = f.uri.pathSegments.last;
+              final surahId = int.tryParse(fileName.replaceAll('.mp3', ''));
+              if (surahId != null) {
+                _downloadedSurahKeys.add(_surahKey(reciterId, surahId, styleId: styleId));
+              }
+            }
+            _styleDownloadedCounts[_styleCountKey(reciterId, styleId)] = styleFiles.length;
+            totalForReciter += styleFiles.length;
+          }
+
+          _downloadedCounts[reciterId] = totalForReciter;
         }
       }
       notifyListeners();
@@ -100,33 +140,39 @@ class QuranAudioDownloadService extends ChangeNotifier {
     }
   }
 
-  int getCachedDownloadedCount(int reciterId) {
+  int getCachedDownloadedCount(int reciterId, {int? styleId}) {
+    if (styleId != null) {
+      return _styleDownloadedCounts[_styleCountKey(reciterId, styleId)] ?? 0;
+    }
     return _downloadedCounts[reciterId] ?? 0;
   }
 
-  bool isReciterComplete(int reciterId) {
-    return (_downloadedCounts[reciterId] ?? 0) >= 114;
+  bool isReciterComplete(int reciterId, {int? styleId}) {
+    return getCachedDownloadedCount(reciterId, styleId: styleId) >= 114;
   }
 
-  /// Synchronous check if a specific surah is downloaded for a reciter
-  bool isSurahDownloaded(int reciterId, int surahId) {
-    return _downloadedSurahKeys.contains('$reciterId:$surahId');
+  /// Synchronous check if a specific surah is downloaded for a reciter (and optional style)
+  bool isSurahDownloaded(int reciterId, int surahId, {int? styleId}) {
+    return _downloadedSurahKeys.contains(_surahKey(reciterId, surahId, styleId: styleId));
   }
 
   /// Synchronous local file path lookup for instant offline playback
-  String? getLocalSurahPath(int reciterId, int surahId) {
-    if (_downloadedSurahKeys.contains('$reciterId:$surahId') && _baseAudioDirPath != null) {
+  String? getLocalSurahPath(int reciterId, int surahId, {int? styleId}) {
+    if (_downloadedSurahKeys.contains(_surahKey(reciterId, surahId, styleId: styleId)) &&
+        _baseAudioDirPath != null) {
       final s = surahId.toString().padLeft(3, '0');
-      final path = '$_baseAudioDirPath/$reciterId/$s.mp3';
-      return path;
+      if (styleId != null) {
+        return '$_baseAudioDirPath/$reciterId/style_$styleId/$s.mp3';
+      }
+      return '$_baseAudioDirPath/$reciterId/$s.mp3';
     }
     return null;
   }
 
-  /// Get how many surahs are locally downloaded for a reciter
-  Future<int> getDownloadedCount(int reciterId) async {
+  /// Get how many surahs are locally downloaded for a reciter (and optional style)
+  Future<int> getDownloadedCount(int reciterId, {int? styleId}) async {
     try {
-      final dir = await _getReciterDir(reciterId);
+      final dir = await _getReciterDir(reciterId, styleId: styleId);
       final files = dir.listSync().whereType<File>().where((f) {
         return f.path.endsWith('.mp3') && f.lengthSync() > 2048;
       }).toList();
@@ -137,13 +183,13 @@ class QuranAudioDownloadService extends ChangeNotifier {
   }
 
   /// Async check for local audio file path
-  Future<String?> findLocalSurahAudioPath(int reciterId, int surahId) async {
+  Future<String?> findLocalSurahAudioPath(int reciterId, int surahId, {int? styleId}) async {
     try {
-      final dir = await _getReciterDir(reciterId);
+      final dir = await _getReciterDir(reciterId, styleId: styleId);
       final s = surahId.toString().padLeft(3, '0');
       final file = File('${dir.path}/$s.mp3');
       if (await file.exists() && await file.length() > 2048) {
-        _downloadedSurahKeys.add('$reciterId:$surahId');
+        _downloadedSurahKeys.add(_surahKey(reciterId, surahId, styleId: styleId));
         return file.path;
       }
     } catch (_) {}
@@ -151,8 +197,8 @@ class QuranAudioDownloadService extends ChangeNotifier {
   }
 
   /// Start or resume background download of all 114 Surahs for a reciter
-  Future<void> startDownload(ReciterItem reciter, {String? serverUrl}) async {
-    if (_isDownloading && _currentReciter?.id == reciter.id) {
+  Future<void> startDownload(ReciterItem reciter, {String? serverUrl, int? styleId}) async {
+    if (_isDownloading && _currentReciter?.id == reciter.id && _currentStyleId == styleId) {
       if (_isPaused) {
         resumeDownload();
       }
@@ -169,6 +215,7 @@ class QuranAudioDownloadService extends ChangeNotifier {
     _isPaused = false;
     _isCancelled = false;
     _currentReciter = reciter;
+    _currentStyleId = styleId;
     _currentSurahIndex = 1;
     _progress = 0.0;
     _statusMessage = 'بدء تحميل مصحف ${reciter.name}...';
@@ -178,7 +225,7 @@ class QuranAudioDownloadService extends ChangeNotifier {
         ? serverUrl
         : (reciterServers[reciter.id] ?? 'https://server8.mp3quran.net/afs/');
     final cleanServer = server.endsWith('/') ? server : '$server/';
-    final dir = await _getReciterDir(reciter.id);
+    final dir = await _getReciterDir(reciter.id, styleId: styleId);
 
     try {
       final client = http.Client();
@@ -207,9 +254,13 @@ class QuranAudioDownloadService extends ChangeNotifier {
 
         // Check if already downloaded
         if (await targetFile.exists() && await targetFile.length() > 5000) {
-          _downloadedSurahKeys.add('${reciter.id}:$ch');
+          _downloadedSurahKeys.add(_surahKey(reciter.id, ch, styleId: styleId));
           _downloadedCountInBatch = ch;
-          _downloadedCounts[reciter.id] = ch;
+          if (styleId != null) {
+            _styleDownloadedCounts[_styleCountKey(reciter.id, styleId)] = ch;
+          } else {
+            _downloadedCounts[reciter.id] = ch;
+          }
           continue;
         }
 
@@ -233,7 +284,7 @@ class QuranAudioDownloadService extends ChangeNotifier {
                   await targetFile.delete();
                 }
                 await tempFile.rename(targetFile.path);
-                _downloadedSurahKeys.add('${reciter.id}:$ch');
+                _downloadedSurahKeys.add(_surahKey(reciter.id, ch, styleId: styleId));
                 break;
               } else {
                 if (await tempFile.exists()) await tempFile.delete();
@@ -246,7 +297,12 @@ class QuranAudioDownloadService extends ChangeNotifier {
         }
 
         _downloadedCountInBatch = ch;
-        _downloadedCounts[reciter.id] = await getDownloadedCount(reciter.id);
+        final count = await getDownloadedCount(reciter.id, styleId: styleId);
+        if (styleId != null) {
+          _styleDownloadedCounts[_styleCountKey(reciter.id, styleId)] = count;
+        } else {
+          _downloadedCounts[reciter.id] = count;
+        }
         _progress = ch / 114.0;
         notifyListeners();
       }
@@ -256,6 +312,7 @@ class QuranAudioDownloadService extends ChangeNotifier {
       if (!_isCancelled) {
         _isDownloading = false;
         _isPaused = false;
+        _currentStyleId = null;
         _progress = 1.0;
         _statusMessage = 'اكتمل تحميل مصحف ${reciter.name} بنجاح!';
         await refreshDownloadedCounts();
@@ -264,10 +321,12 @@ class QuranAudioDownloadService extends ChangeNotifier {
       debugPrint('Quran audio batch error: $e');
       _statusMessage = 'حدث خطأ أثناء التحميل: $e';
       _isDownloading = false;
+      _currentStyleId = null;
     } finally {
       if (_isCancelled) {
         _isDownloading = false;
         _isPaused = false;
+        _currentStyleId = null;
         _statusMessage = 'تم إلغاء التحميل';
       }
       notifyListeners();
@@ -294,13 +353,14 @@ class QuranAudioDownloadService extends ChangeNotifier {
     _isCancelled = true;
     _isDownloading = false;
     _isPaused = false;
+    _currentStyleId = null;
     _statusMessage = 'تم الإلغاء';
     notifyListeners();
   }
 
-  /// Start batch download with optional serverUrl parameter
-  Future<void> startBatchDownload(ReciterItem reciter, {String? serverUrl}) async {
-    await startDownload(reciter, serverUrl: serverUrl);
+  /// Start batch download with optional serverUrl and styleId parameters
+  Future<void> startBatchDownload(ReciterItem reciter, {String? serverUrl, int? styleId}) async {
+    await startDownload(reciter, serverUrl: serverUrl, styleId: styleId);
   }
 
   /// Download a single full surah file for offline playback with live progress
@@ -308,14 +368,15 @@ class QuranAudioDownloadService extends ChangeNotifier {
     required ReciterItem reciter,
     required int surahId,
     String? serverUrl,
+    int? styleId,
   }) async {
-    final key = '${reciter.id}:$surahId';
+    final key = _surahKey(reciter.id, surahId, styleId: styleId);
     if (_singleSurahProgress.containsKey(key)) {
       return false; // Already downloading
     }
 
     try {
-      final dir = await _getReciterDir(reciter.id);
+      final dir = await _getReciterDir(reciter.id, styleId: styleId);
       final s = surahId.toString().padLeft(3, '0');
       final targetFile = File('${dir.path}/$s.mp3');
       if (await targetFile.exists() && await targetFile.length() > 5000) {
@@ -364,7 +425,11 @@ class QuranAudioDownloadService extends ChangeNotifier {
           }
           await tempFile.rename(targetFile.path);
           _downloadedSurahKeys.add(key);
-          _downloadedCounts[reciter.id] = await getDownloadedCount(reciter.id);
+          if (styleId != null) {
+            _styleDownloadedCounts[_styleCountKey(reciter.id, styleId)] =
+                await getDownloadedCount(reciter.id, styleId: styleId);
+          }
+          await refreshDownloadedCounts();
           _singleSurahProgress.remove(key);
           notifyListeners();
           client.close();
@@ -383,19 +448,27 @@ class QuranAudioDownloadService extends ChangeNotifier {
     return false;
   }
 
-  /// Delete downloaded audio files for a reciter to free phone space
-  Future<void> deleteReciterAudio(int reciterId) async {
+  /// Delete downloaded audio files for a reciter (or specific style) to free phone space
+  Future<void> deleteReciterAudio(int reciterId, {int? styleId}) async {
     try {
-      if (_isDownloading && _currentReciter?.id == reciterId) {
+      if (_isDownloading && _currentReciter?.id == reciterId &&
+          (styleId == null || _currentStyleId == styleId)) {
         cancelDownload();
       }
-      final dir = await _getReciterDir(reciterId);
+      final dir = await _getReciterDir(reciterId, styleId: styleId);
       if (await dir.exists()) {
         await dir.delete(recursive: true);
       }
-      _downloadedCounts[reciterId] = 0;
-      _downloadedSurahKeys.removeWhere((k) => k.startsWith('$reciterId:'));
-      notifyListeners();
+      if (styleId != null) {
+        _styleDownloadedCounts[_styleCountKey(reciterId, styleId)] = 0;
+        _downloadedSurahKeys.removeWhere((k) => k.startsWith('$reciterId:$styleId:'));
+        await refreshDownloadedCounts();
+      } else {
+        _downloadedCounts[reciterId] = 0;
+        _styleDownloadedCounts.removeWhere((k, _) => k.startsWith('$reciterId:'));
+        _downloadedSurahKeys.removeWhere((k) => k.startsWith('$reciterId:'));
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('Error deleting reciter audio: $e');
     }

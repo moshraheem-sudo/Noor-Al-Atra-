@@ -111,6 +111,16 @@ class SettingsController extends ChangeNotifier {
   String get selectedMuezzin => _selectedMuezzin;
   Map<String, String?> get prayerMuezzins => _prayerMuezzins;
 
+  bool isPrayerNotificationEnabled(String prayer) {
+    if (prayer.contains('فجر') || prayer == 'fajr') return notifyFajr;
+    if (prayer.contains('شروق') || prayer == 'sunrise') return notifySunrise;
+    if (prayer.contains('ظهر') || prayer == 'dhuhr') return notifyDhuhr;
+    if (prayer.contains('عصر') || prayer == 'asr') return notifyAsr;
+    if (prayer.contains('مغرب') || prayer == 'maghrib') return notifyMaghrib;
+    if (prayer.contains('عشاء') || prayer == 'isha') return notifyIsha;
+    return false;
+  }
+
   /// Returns the customized muezzin for a specific prayer, or falls back to _selectedMuezzin
   String getMuezzinForPrayer(String prayerKeyOrName) {
     String key = prayerKeyOrName.toLowerCase().trim();
@@ -255,6 +265,7 @@ class SettingsController extends ChangeNotifier {
     _taqeebatNotifications = val;
     await _prefs?.setBool('settings_taqeebat_notif', val);
     notifyListeners();
+    await AppNotificationService().refreshPrayerSchedules();
   }
 
   Future<void> setStickyPrayerNotification(bool val) async {
@@ -296,12 +307,20 @@ class SettingsController extends ChangeNotifier {
         break;
     }
     notifyListeners();
+    final scheduler = AdhanSchedulerService();
+    if (!val) await scheduler.syncAdhanPlayingState();
+    final activePrayer = scheduler.currentAdhanPrayerName;
+    if (!val && activePrayer != null && !isPrayerNotificationEnabled(activePrayer)) {
+      await scheduler.stopAdhan();
+    }
+    await AppNotificationService().refreshPrayerSchedules();
   }
 
   Future<void> setNotifyPrePrayer15Min(bool val) async {
     _notifyPrePrayer15Min = val;
     await _prefs?.setBool('settings_notify_pre_prayer', val);
     notifyListeners();
+    await AppNotificationService().refreshPrayerSchedules();
   }
 
   Future<void> setPrayerOffset(String prayerKey, int offset) async {
@@ -332,6 +351,7 @@ class SettingsController extends ChangeNotifier {
     _selectedMuezzin = val;
     await _prefs?.setString('settings_selected_muezzin', val);
     notifyListeners();
+    await AppNotificationService().refreshPrayerSchedules();
   }
 
   Future<void> setPrayerMuezzin(String prayerKey, String? muezzinName) async {
@@ -344,6 +364,7 @@ class SettingsController extends ChangeNotifier {
       await _prefs?.setString('settings_muezzin_$key', muezzinName);
     }
     notifyListeners();
+    await AppNotificationService().refreshPrayerSchedules();
   }
 
   Future<void> setCalculationMethod(String val) async {

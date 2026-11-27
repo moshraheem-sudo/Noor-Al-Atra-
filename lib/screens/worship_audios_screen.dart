@@ -8,10 +8,10 @@ import 'package:share_plus/share_plus.dart';
 import '../models/worship_audio.dart';
 import '../services/data_service.dart';
 import '../services/audio_player_service.dart';
+import '../services/audio_player_manager.dart';
 import '../services/settings_controller.dart';
 import '../services/voice_search_service.dart';
 import '../widgets/mini_audio_player.dart';
-import '../widgets/mini_player_widget.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../main.dart';
 import 'qibla_compass_screen.dart';
@@ -46,6 +46,26 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
     }
     final safeReciter = reciter.reciterName.replaceAll(RegExp(r'[^\w\u0600-\u06FF]'), '_');
     return File('${audioDir.path}/${item.id}_$safeReciter.mp3');
+  }
+
+  int _playRequest = 0;
+
+  Future<void> _playAudio(WorshipAudioItem selected, WorshipReciterOption reciter) async {
+    final request = ++_playRequest;
+    final items = DataService().worshipAudios.where((item) => item.reciters.isNotEmpty).toList();
+    final tracks = await Future.wait(items.map((item) async {
+      final voice = item.id == selected.id ? reciter : (_getSelectedReciter(item) ?? item.reciters.first);
+      var source = voice.url;
+      try {
+        final file = await _getLocalAudioFile(item, voice);
+        if (await file.exists() && await file.length() > 1024) source = file.path;
+      } catch (_) {}
+      return AudioTrackInfo(title: item.title, subtitle: voice.reciterName,
+        url: source, category: item.categoryArabic);
+    }));
+    if (!mounted || request != _playRequest) return;
+    final index = items.indexWhere((item) => item.id == selected.id);
+    await AudioPlayerManager().playPlaylist(tracks, index);
   }
 
   Future<void> _scanDownloadedAudios() async {
@@ -199,19 +219,6 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
     _searchCtrl.dispose();
     _searchFocusNode.dispose();
     super.dispose();
-  }
-
-  String _getActiveTabName() {
-    switch (_tabController.index) {
-      case 1:
-        return 'الأدعية';
-      case 2:
-        return 'الزيارات';
-      case 3:
-        return 'المناجاة';
-      default:
-        return 'الكل';
-    }
   }
 
   @override
@@ -494,7 +501,6 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                 bottomNavigationBar: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const MiniPlayerWidget(),
                     const MiniAudioPlayer(
                       bottomPadding: 6,
                       autoBottomInset: false,
@@ -568,7 +574,6 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
             animation: AudioPlayerService(),
             builder: (context, _) {
               final player = AudioPlayerService();
-              final currentUrl = player.currentTrack?.url;
               final isPlaying = player.isPlaying;
 
               return ListView.builder(
@@ -577,7 +582,7 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                 itemBuilder: (context, index) {
                   final item = items[index];
                   final selectedReciter = _getSelectedReciter(item);
-                  final isItemActive = selectedReciter != null && currentUrl == selectedReciter.url;
+                  final isItemActive = selectedReciter != null && player.currentTrack?.title == item.title && player.currentTrack?.subtitle == selectedReciter.reciterName;
                   final isItemPlaying = isItemActive && isPlaying;
 
                   return Padding(
@@ -590,14 +595,7 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                           if (isItemActive && isPlaying) {
                             player.pause();
                           } else {
-                            player.playTrack(
-                              AudioTrackInfo(
-                                title: item.title,
-                                subtitle: selectedReciter.reciterName,
-                                url: selectedReciter.url,
-                                category: item.categoryArabic,
-                              ),
-                            );
+                            _playAudio(item, selectedReciter);
                           }
                         },
                         borderRadius: BorderRadius.circular(18),
@@ -812,19 +810,7 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                                             _showReciterSelectionSheet(context, item, isDark);
                                           } else {
                                             if (selectedReciter == null) return;
-                                            String effectiveUrl = selectedReciter.url;
-                                            final file = await _getLocalAudioFile(item, selectedReciter);
-                                            if (await file.exists() && await file.length() > 1024) {
-                                              effectiveUrl = file.path;
-                                            }
-                                            player.playTrack(
-                                              AudioTrackInfo(
-                                                title: item.title,
-                                                subtitle: selectedReciter.reciterName,
-                                                url: effectiveUrl,
-                                                category: item.categoryArabic,
-                                              ),
-                                            );
+                                            _playAudio(item, selectedReciter);
                                           }
                                         }
                                       },
@@ -882,8 +868,7 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
         return AnimatedBuilder(
           animation: player,
           builder: (context, _) {
-            final currentUrl = player.currentTrack?.url;
-            final isPlaying = player.isPlaying;
+                    final isPlaying = player.isPlaying;
 
             return Directionality(
               textDirection: TextDirection.rtl,
@@ -971,7 +956,7 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                         itemBuilder: (context, idx) {
                           final reciter = item.reciters[idx];
                           final isSelectedReciter = (_selectedReciters[item.id]?.url ?? item.reciters.first.url) == reciter.url;
-                          final isThisCurrent = currentUrl == reciter.url;
+                          final isThisCurrent = player.currentTrack?.title == item.title && player.currentTrack?.subtitle == reciter.reciterName;
                           final isThisPlaying = isThisCurrent && isPlaying;
 
                           return Material(
@@ -984,14 +969,7 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
                                 if (isThisPlaying) {
                                   player.pause();
                                 } else {
-                                  player.playTrack(
-                                    AudioTrackInfo(
-                                      title: item.title,
-                                      subtitle: reciter.reciterName,
-                                      url: reciter.url,
-                                      category: item.categoryArabic,
-                                    ),
-                                  );
+                                  _playAudio(item, reciter);
                                 }
                                 Navigator.pop(ctx);
                               },

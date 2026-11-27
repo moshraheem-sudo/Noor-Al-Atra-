@@ -10,7 +10,9 @@ import 'providers/prayer_provider.dart';
 import 'providers/worship_provider.dart';
 import 'providers/quran_provider.dart';
 import 'services/quran_audio_download_service.dart';
-import 'widgets/mini_player_widget.dart';
+import 'widgets/mini_audio_player.dart';
+import 'services/media_audio_handler.dart';
+import 'widgets/active_adhan_banner.dart';
 import 'widgets/app_bottom_nav_bar.dart';
 
 import 'screens/home_screen.dart';
@@ -32,6 +34,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize persistent storage, notifications, hijri and asset data
+  await initializeMediaAudio();
   await StorageService().init();
   await DataService().init();
   await SettingsController().init();
@@ -195,7 +198,7 @@ class MainNavigationScreen extends StatefulWidget {
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
+class _MainNavigationScreenState extends State<MainNavigationScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   late final PageController _pageController;
 
@@ -203,6 +206,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     MainNavigationScreen._instance = this;
+    WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _currentIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AppNotificationService().requestPermissionsAndBatteryOptimization();
@@ -214,22 +218,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     if (MainNavigationScreen._instance == this) {
       MainNavigationScreen._instance = null;
     }
+    WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AdhanSchedulerService().syncAdhanPlayingState();
+    }
+  }
+
   void setIndex(int index) {
-    if (mounted) {
-      setState(() {
-        _currentIndex = index;
-      });
-      if (_pageController.hasClients && _pageController.page?.round() != index) {
-        _pageController.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 320),
-          curve: Curves.easeOutCubic,
-        );
-      }
+    if (!mounted || index < 0 || index >= _screens.length) return;
+
+    if (_currentIndex != index) {
+      setState(() => _currentIndex = index);
+    }
+    // Tab taps go straight to their destination without building the intervening
+    // screens during an animation. PageView still supports manual swiping.
+    // Compare the exact page so tapping during a swipe also snaps into place.
+    if (_pageController.hasClients && _pageController.page != index.toDouble()) {
+      _pageController.jumpToPage(index);
     }
   }
 
@@ -259,16 +270,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             controller: _pageController,
             physics: const BouncingScrollPhysics(),
             onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
+              if (_currentIndex != index) {
+                setState(() => _currentIndex = index);
+              }
             },
             children: _screens,
           ),
           bottomNavigationBar: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const MiniPlayerWidget(),
+              ActiveAdhanBanner(isDark: Theme.of(context).brightness == Brightness.dark),
+              const MiniAudioPlayer(bottomPadding: 6),
               AppBottomNavBar(
                 currentIndex: _currentIndex,
                 onTap: setIndex,

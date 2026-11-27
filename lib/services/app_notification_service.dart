@@ -8,7 +8,6 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'hijri_date_service.dart';
 import 'data_service.dart';
-import 'audio_player_service.dart';
 import 'adhan_scheduler_service.dart';
 import 'proximity_wakelock_service.dart';
 import 'muezzin_download_service.dart';
@@ -38,6 +37,41 @@ class AppNotificationService {
 
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
+
+  Future<void> _prayerScheduleQueue = Future<void>.value();
+  final Map<DateTime, PrayerTimesModel> _scheduledPrayerDays = {};
+
+  Future<void> _queuePrayerSchedule(Future<void> Function() operation) {
+    final next = _prayerScheduleQueue.then((_) => operation());
+    _prayerScheduleQueue = next.catchError((Object error) {
+      debugPrint('Prayer scheduling error: $error');
+    });
+    return next;
+  }
+
+  Future<void> refreshPrayerSchedules() => _queuePrayerSchedule(() async {
+    if (!_isInitialized) return;
+    // Cancel both day slots, including schedules created before this update.
+    for (var day = 0; day < 2; day++) {
+      for (var index = 1; index <= 6; index++) {
+        await _cancelPrayerSlot(day * 10 + index);
+      }
+    }
+    final today = DateUtils.dateOnly(DateTime.now());
+    _scheduledPrayerDays.removeWhere((date, _) => date.isBefore(today));
+    for (final entry in _scheduledPrayerDays.entries.toList()) {
+      await _schedulePrayerAlarmsAndReminders(prayerTimes: entry.value, date: entry.key);
+    }
+  });
+
+  Future<void> _cancelPrayerSlot(int slot) async {
+    if (Platform.isAndroid) {
+      await ProximityWakeLockService().cancelNativePrayerAlarm(3000 + slot);
+    }
+    for (final base in [2100, 2200, 3500, 4000]) {
+      await _localNotifications.cancel(id: base + slot);
+    }
+  }
 
   Timer? _quranTimer;
 
@@ -185,12 +219,18 @@ class AppNotificationService {
 
     tz.initializeTimeZones();
     const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
-    const darwinSettings = DarwinInitializationSettings(
+    final darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
+      notificationCategories: [
+        DarwinNotificationCategory('adhan_controls', actions: [
+          DarwinNotificationAction.plain('stop_adhan', 'إيقاف الأذان',
+            options: {DarwinNotificationActionOption.foreground}),
+        ]),
+      ],
     );
-    const initSettings = InitializationSettings(
+    final initSettings = InitializationSettings(
       android: androidSettings,
       iOS: darwinSettings,
     );
@@ -297,6 +337,12 @@ class AppNotificationService {
       }
 
       _isInitialized = true;
+      final launch = await _localNotifications.getNotificationAppLaunchDetails();
+      final response = launch?.notificationResponse;
+      if (launch?.didNotificationLaunchApp == true && response != null &&
+          (response.payload?.startsWith('adhan_') ?? false)) {
+        _handleNotificationResponse(response);
+      }
     } catch (e) {
       debugPrint('Notification init error: $e');
     }
@@ -330,7 +376,9 @@ class AppNotificationService {
     final actionId = response.actionId;
     final payload = response.payload;
 
-    if (actionId == 'stop_adhan') {
+    if (actionId == 'stop_adhan' ||
+        (response.notificationResponseType == NotificationResponseType.selectedNotification &&
+         (payload?.startsWith('adhan_') ?? false))) {
       stopAdhan();
       return;
     } else if (actionId == 'toggle_adhan_volume' || actionId == 'lower_adhan_volume') {
@@ -676,6 +724,14 @@ class AppNotificationService {
   Future<void> schedulePrayerAlarmsAndReminders({
     required PrayerTimesModel prayerTimes,
     required DateTime date,
+  }) => _queuePrayerSchedule(() async {
+    _scheduledPrayerDays[DateUtils.dateOnly(date)] = prayerTimes;
+    await _schedulePrayerAlarmsAndReminders(prayerTimes: prayerTimes, date: date);
+  });
+
+  Future<void> _schedulePrayerAlarmsAndReminders({
+    required PrayerTimesModel prayerTimes,
+    required DateTime date,
   }) async {
     await init();
     if (!_isInitialized) return;
@@ -697,7 +753,9 @@ class AppNotificationService {
     final dayOffset = targetDay.difference(nowDay).inDays;
 
     for (final p in prayers) {
-      if (!(p['enabled'] as bool)) continue;
+      final slot = dayOffset * 10 + (p['index'] as int);
+      await _cancelPrayerSlot(slot);
+      if (!settings.isPrayerNotificationEnabled(p['key'] as String)) continue;
 
       final timeParts = (p['time'] as String).split(':');
       if (timeParts.length < 2) continue;
@@ -712,7 +770,7 @@ class AppNotificationService {
 
       // 1. 10-Minute Reminder Before Prayer (تذكير قبل الصلاة بـ 10 دقائق)
       final rem10Time = prayerDateTime.subtract(const Duration(minutes: 10));
-      if (rem10Time.isAfter(now)) {
+      if (settings.notifyPrePrayer15Min && rem10Time.isAfter(now)) {
         try {
           await _localNotifications.zonedSchedule(
             id: 2100 + uniquePrayerId,
@@ -744,7 +802,7 @@ class AppNotificationService {
 
       // 2. 5-Minute Reminder Before Prayer (تذكير قبل الصلاة بـ 5 دقائق)
       final rem5Time = prayerDateTime.subtract(const Duration(minutes: 5));
-      if (rem5Time.isAfter(now)) {
+      if (settings.notifyPrePrayer15Min && rem5Time.isAfter(now)) {
         try {
           await _localNotifications.zonedSchedule(
             id: 2200 + uniquePrayerId,
@@ -786,6 +844,7 @@ class AppNotificationService {
             );
             final localPath = await MuezzinDownloadService().getLocalMuezzinPath(muezzin.id);
 
+            if (!settings.isPrayerNotificationEnabled(p['key'] as String)) continue;
             await ProximityWakeLockService().scheduleNativePrayerAlarm(
               prayerName: pName,
               triggerTime: prayerDateTime,
@@ -801,7 +860,7 @@ class AppNotificationService {
               body: 'حان الآن موعد صلاة $pName',
               scheduledDate: tz.TZDateTime.from(prayerDateTime, tz.local),
               notificationDetails: const NotificationDetails(
-                iOS: defaultDarwinDetails,
+                iOS: DarwinNotificationDetails(categoryIdentifier: 'adhan_controls'),
                 android: AndroidNotificationDetails(
                   'adhan_live_audio_channel_v6',
                   'أذان الصلاة المباشر',
@@ -923,6 +982,12 @@ class AppNotificationService {
     );
   }
 
+  static const adhanDarwinDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentSound: false,
+    categoryIdentifier: 'adhan_controls',
+  );
+
   /// Show Adhan Live Notification with Stop Action
   Future<void> showAdhanNotification({
     required String prayerName,
@@ -964,11 +1029,11 @@ class AppNotificationService {
       ],
     );
 
-    const notificationDetails = NotificationDetails(android: androidDetails, iOS: defaultDarwinDetails);
+    const notificationDetails = NotificationDetails(android: androidDetails, iOS: adhanDarwinDetails);
 
     try {
       await _localNotifications.show(
-        id: 4001,
+        id: 4099,
         title: title,
         body: body,
         notificationDetails: notificationDetails,
@@ -979,28 +1044,12 @@ class AppNotificationService {
     }
   }
 
-  /// Stop Adhan playback
-  Future<void> stopAdhan() async {
-    try {
-      if (Platform.isAndroid) {
-        await ProximityWakeLockService().stopNativeAdhan();
-      }
-      await AdhanSchedulerService().stopAdhan();
-      await AudioPlayerService().stop();
-      await cancelAdhanNotifications();
-    } catch (_) {}
-  }
+  /// Stop the owning player; unrelated Quran/dua playback is not affected.
+  Future<void> stopAdhan() => AdhanSchedulerService().stopAdhan();
 
-  /// Cancel all active or pending Adhan notifications
+  /// Only remove the live control notification, not future prayer alarms.
   Future<void> cancelAdhanNotifications() async {
-    try {
-      if (_isInitialized) {
-        await _localNotifications.cancel(id: 4001);
-        for (int i = 3000; i <= 3006; i++) {
-          await _localNotifications.cancel(id: i);
-        }
-      }
-    } catch (_) {}
+    if (_isInitialized) await _localNotifications.cancel(id: 4099);
   }
 
   /// Cancel Sticky Prayer Notification

@@ -10,6 +10,7 @@ class AdhanAlarmReceiver : BroadcastReceiver() {
         val muezzinPath = intent.getStringExtra("muezzin_path")
         val muezzinName = intent.getStringExtra("muezzin_name")
 
+        if (!AdhanAudioService.isPrayerAllowed(context, prayerName)) return
         AdhanAudioService.startAdhan(context, prayerName, muezzinPath, muezzinName)
     }
 }

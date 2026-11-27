@@ -29,12 +29,12 @@ import android.app.Activity
 import android.app.WallpaperManager
 import android.speech.RecognizerIntent
 import androidx.core.app.NotificationCompat
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : AudioServiceActivity() {
     private val SENSOR_CHANNEL = "com.example.flutter_noor_alatra/proximity"
     private val WAKELOCK_CHANNEL = "com.example.flutter_noor_alatra/wakelock"
 

@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../models/quran_chapter.dart';
 import '../models/reciter.dart';
 import 'quran_api_service.dart';
+import 'quran_audio_download_service.dart';
 import 'audio_player_service.dart';
 
 class AudioPlayerManager extends ChangeNotifier {
@@ -23,6 +24,8 @@ class AudioPlayerManager extends ChangeNotifier {
   String? _currentSurahName;
   ReciterItem? _currentReciter;
   ReciterStyle? _currentStyle;
+
+  List<AudioTrackInfo> _playlist = const [];
 
   // Sleep timer
   Timer? _sleepTimer;
@@ -53,11 +56,18 @@ class AudioPlayerManager extends ChangeNotifier {
 
     _service.onTrackCompleted = () async {
       final track = currentTrack;
-      if (track != null && track.category == 'quran_surah') {
-        if (_isLooping) {
-          await playTrack(track);
-        } else if (_currentSurahId != null && _currentSurahId! < 114) {
+      if (track == null) return;
+      if (_isLooping) {
+        await playTrack(track);
+      } else if (track.category == 'quran_surah') {
+        if (_currentSurahId != null && _currentSurahId! < 114) {
           await playNextSurah();
+        } else {
+          await stop();
+        }
+      } else if (track.category != 'quran_verse') {
+        if (canGoNext) {
+          await nextTrack();
         } else {
           await stop();
         }
@@ -66,12 +76,23 @@ class AudioPlayerManager extends ChangeNotifier {
   }
 
   void _onServiceUpdate() {
+    final track = _service.currentTrack;
+    if (track != null && track.category != 'quran_surah') {
+      _currentSurahId = null;
+      _currentSurahName = null;
+      _currentReciter = null;
+      _currentStyle = null;
+    }
+    if (track != null && !_playlist.any((t) => t.url == track.url)) {
+      _playlist = const [];
+    }
+    if (track == null) cancelSleepTimer();
     notifyListeners();
   }
 
   /// Play a specific track directly
   Future<void> playTrack(AudioTrackInfo track) async {
-    if (track.category != 'quran_surah') {
+    if (track.category != 'quran_surah' && track.category != 'quran_verse') {
       _currentSurahId = null;
       _currentSurahName = null;
       _currentReciter = null;
@@ -89,6 +110,33 @@ class AudioPlayerManager extends ChangeNotifier {
     } catch (e) {
       debugPrint('AudioPlayerManager playTrack error: $e');
     }
+  }
+
+  Future<void> playPlaylist(List<AudioTrackInfo> tracks, int index) async {
+    if (index < 0 || index >= tracks.length) return;
+    _playlist = List.unmodifiable(tracks);
+    await playTrack(tracks[index]);
+  }
+
+  int get _playlistIndex => _playlist.indexWhere((track) => track.url == currentTrack?.url);
+  bool get canGoNext => currentTrack?.category == 'quran_verse'
+      ? (_service.currentAyahNum ?? 0) < (_service.totalAyahsInSurah ?? 0)
+      : _currentSurahId != null ? _currentSurahId! < 114
+      : _playlistIndex >= 0 && _playlistIndex < _playlist.length - 1;
+  bool get canGoPrevious => currentTrack?.category == 'quran_verse'
+      ? (_service.currentAyahNum ?? 0) > 1
+      : _currentSurahId != null ? _currentSurahId! > 1 : _playlistIndex > 0;
+  Future<void> nextTrack() async {
+    if (!canGoNext) return;
+    if (currentTrack?.category == 'quran_verse') { await _service.nextAyah(); }
+    else if (_currentSurahId != null) { await playNextSurah(); }
+    else { await playTrack(_playlist[_playlistIndex + 1]); }
+  }
+  Future<void> previousTrack() async {
+    if (!canGoPrevious) return;
+    if (currentTrack?.category == 'quran_verse') { await _service.previousAyah(); }
+    else if (_currentSurahId != null) { await playPreviousSurah(); }
+    else { await playTrack(_playlist[_playlistIndex - 1]); }
   }
 
   /// Play a full Surah for a specific reciter
@@ -110,6 +158,8 @@ class AudioPlayerManager extends ChangeNotifier {
 
     // Halt any ongoing verse recitation
     _service.isContinuousQuranPlayback = false;
+    _service.currentAyahNum = null;
+    _service.totalAyahsInSurah = null;
 
     String audioUrl;
     if (localPath != null && await File(localPath).exists()) {
@@ -121,9 +171,13 @@ class AudioPlayerManager extends ChangeNotifier {
       audioUrl = QuranApiService.getSurahAudioUrl(server, surahId);
     }
 
+    final trackSubtitle = style != null
+        ? '${reciter.name} • ${style.displayName}'
+        : reciter.name;
+
     final track = AudioTrackInfo(
       title: 'سورة ${chapter.nameArabic}',
-      subtitle: reciter.name,
+      subtitle: trackSubtitle,
       url: audioUrl,
       category: 'quran_surah',
     );
@@ -153,6 +207,8 @@ class AudioPlayerManager extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    cancelSleepTimer();
+    _playlist = const [];
     await _service.stop();
     _currentSurahId = null;
     _currentSurahName = null;
@@ -190,20 +246,34 @@ class AudioPlayerManager extends ChangeNotifier {
 
   Future<void> playNextSurah() async {
     if (_currentSurahId != null && _currentSurahId! < 114 && _currentReciter != null) {
+      final nextId = _currentSurahId! + 1;
+      final localPath = QuranAudioDownloadService().getLocalSurahPath(
+        _currentReciter!.id,
+        nextId,
+        styleId: _currentStyle?.id,
+      );
       await playSurah(
-        surahId: _currentSurahId! + 1,
+        surahId: nextId,
         reciter: _currentReciter!,
         style: _currentStyle,
+        localPath: localPath,
       );
     }
   }
 
   Future<void> playPreviousSurah() async {
     if (_currentSurahId != null && _currentSurahId! > 1 && _currentReciter != null) {
+      final prevId = _currentSurahId! - 1;
+      final localPath = QuranAudioDownloadService().getLocalSurahPath(
+        _currentReciter!.id,
+        prevId,
+        styleId: _currentStyle?.id,
+      );
       await playSurah(
-        surahId: _currentSurahId! - 1,
+        surahId: prevId,
         reciter: _currentReciter!,
         style: _currentStyle,
+        localPath: localPath,
       );
     }
   }

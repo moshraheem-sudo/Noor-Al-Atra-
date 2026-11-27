@@ -55,7 +55,10 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
   int? _resumedKhatmaAyah;
   int? _activeRecitingAyah;
   bool _isContinuousReciting = false;
-  double _readingProgress = 0.0;
+  final ValueNotifier<double> _readingProgressNotifier = ValueNotifier<double>(0.0);
+  bool _lastAudioIsPlaying = false;
+  int? _lastAudioSurahId;
+  int? _lastAudioAyahNum;
 
   bool _showBookmarkPill = false;
   String _bookmarkPillText = 'تمت إضافة الآية للعلامات المرجعية';
@@ -156,15 +159,15 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
     if (!_scrollCtrl.hasClients) return;
     final maxScroll = _scrollCtrl.position.maxScrollExtent;
     if (maxScroll <= 0) {
-      if (_readingProgress != 1.0) {
-        setState(() => _readingProgress = 1.0);
+      if (_readingProgressNotifier.value != 1.0) {
+        _readingProgressNotifier.value = 1.0;
       }
       return;
     }
     final current = _scrollCtrl.offset;
     final progress = (current / maxScroll).clamp(0.0, 1.0);
-    if ((progress - _readingProgress).abs() > 0.003) {
-      setState(() => _readingProgress = progress);
+    if ((progress - _readingProgressNotifier.value).abs() > 0.003) {
+      _readingProgressNotifier.value = progress;
     }
 
     // Debounce progress saving (350ms): saves steadily as user reads/scrolls calmly
@@ -240,10 +243,26 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
   void _onAudioPlayerStateChanged() {
     if (!mounted) return;
     final audio = AudioPlayerService();
-    if (audio.currentSurahId == _currentChapter.id) {
-      _activeRecitingAyah = audio.currentAyahNum;
-      _isContinuousReciting = audio.isContinuousQuranPlayback;
-    } else if (!audio.isContinuousQuranPlayback && !audio.isPlaying) {
+    final isPlaying = audio.isPlaying;
+    final surahId = audio.currentSurahId;
+    final ayahNum = audio.currentAyahNum;
+    final isContinuous = audio.isContinuousQuranPlayback;
+
+    if (isPlaying == _lastAudioIsPlaying &&
+        surahId == _lastAudioSurahId &&
+        ayahNum == _lastAudioAyahNum &&
+        isContinuous == _isContinuousReciting) {
+      return;
+    }
+
+    _lastAudioIsPlaying = isPlaying;
+    _lastAudioSurahId = surahId;
+    _lastAudioAyahNum = ayahNum;
+
+    if (surahId == _currentChapter.id) {
+      _activeRecitingAyah = ayahNum;
+      _isContinuousReciting = isContinuous;
+    } else if (!isContinuous && !isPlaying) {
       _isContinuousReciting = false;
       _activeRecitingAyah = null;
     }
@@ -336,6 +355,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
     }
     _scrollCtrl.removeListener(_onScrollProgressChanged);
     _scrollCtrl.dispose();
+    _readingProgressNotifier.dispose();
     super.dispose();
   }
 
@@ -353,12 +373,12 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
     final targetAyah = initialAyah ?? (scrollToBottom ? newChapter.versesCount : 1);
     final targetPage = JuzInfo.getPageForSurahAndAyah(newChapter.id, targetAyah);
 
+    _readingProgressNotifier.value = scrollToBottom ? 1.0 : 0.0;
     setState(() {
       _currentChapter = newChapter;
       _resumedKhatmaAyah = targetAyah;
       _selectedAyahNum = null;
       _activeRecitingAyah = null;
-      _readingProgress = scrollToBottom ? 1.0 : 0.0;
     });
 
     // 3. Immediately record progress for the new chapter/juz
@@ -2054,12 +2074,15 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                           width: double.infinity,
                           child: Directionality(
                             textDirection: TextDirection.rtl,
-                            child: LinearProgressIndicator(
-                              value: _readingProgress,
-                              backgroundColor: isDark
-                                  ? const Color(0xFF1E293B)
-                                  : const Color(0xFFE2E8F0),
-                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                            child: ValueListenableBuilder<double>(
+                              valueListenable: _readingProgressNotifier,
+                              builder: (context, progress, _) => LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFE2E8F0),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                              ),
                             ),
                           ),
                         ),
@@ -2316,9 +2339,10 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
 
                                 // C. Continuous Mushaf Text with Quranic script, \u06DD, and gestures
                                 if (verses.isNotEmpty)
-                                  Directionality(
-                                    textDirection: TextDirection.rtl,
-                                    child: Text.rich(
+                                  RepaintBoundary(
+                                    child: Directionality(
+                                      textDirection: TextDirection.rtl,
+                                      child: Text.rich(
                                       TextSpan(
                                          children: verses.map((v) {
                                            final ayahNum = int.tryParse(v.verseKey.split(':').last) ?? 1;
@@ -2528,7 +2552,8 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                                       ),
                                       textAlign: TextAlign.justify,
                                     ),
-                                  )
+                                  ),
+                                )
                                 else
                                   const Center(
                                     child: Padding(
