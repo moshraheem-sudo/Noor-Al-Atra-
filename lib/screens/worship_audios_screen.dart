@@ -49,21 +49,40 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
   }
 
   int _playRequest = 0;
+  String? _cachedAudioDirPath;
 
   Future<void> _playAudio(WorshipAudioItem selected, WorshipReciterOption reciter) async {
     final request = ++_playRequest;
     final items = DataService().worshipAudios.where((item) => item.reciters.isNotEmpty).toList();
-    final tracks = await Future.wait(items.map((item) async {
+    final selectedKey = _getAudioFileKey(selected, reciter);
+    String? selectedLocalPath;
+    if (_downloadedAudioKeys.contains(selectedKey)) {
+      try {
+        final file = await _getLocalAudioFile(selected, reciter);
+        if (await file.exists() && await file.length() > 1024) {
+          selectedLocalPath = file.path;
+        }
+      } catch (_) {}
+    }
+    if (!mounted || request != _playRequest) return;
+
+    final tracks = items.map((item) {
       final voice = item.id == selected.id ? reciter : (_getSelectedReciter(item) ?? item.reciters.first);
       var source = voice.url;
-      try {
-        final file = await _getLocalAudioFile(item, voice);
-        if (await file.exists() && await file.length() > 1024) source = file.path;
-      } catch (_) {}
-      return AudioTrackInfo(title: item.title, subtitle: voice.reciterName,
-        url: source, category: item.categoryArabic);
-    }));
-    if (!mounted || request != _playRequest) return;
+      if (item.id == selected.id && selectedLocalPath != null) {
+        source = selectedLocalPath;
+      } else if (_cachedAudioDirPath != null && _downloadedAudioKeys.contains(_getAudioFileKey(item, voice))) {
+        final safeReciter = voice.reciterName.replaceAll(RegExp(r'[^\w\u0600-\u06FF]'), '_');
+        source = '$_cachedAudioDirPath/${item.id}_$safeReciter.mp3';
+      }
+      return AudioTrackInfo(
+        title: item.title,
+        subtitle: voice.reciterName,
+        url: source,
+        category: item.categoryArabic,
+      );
+    }).toList(growable: false);
+
     final index = items.indexWhere((item) => item.id == selected.id);
     await AudioPlayerManager().playPlaylist(tracks, index);
   }
@@ -71,7 +90,8 @@ class _WorshipAudiosScreenState extends State<WorshipAudiosScreen> with SingleTi
   Future<void> _scanDownloadedAudios() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final audioDir = Directory('${dir.path}/worship_audios');
+      _cachedAudioDirPath = '${dir.path}/worship_audios';
+      final audioDir = Directory(_cachedAudioDirPath!);
       if (await audioDir.exists()) {
         final files = audioDir.listSync();
         for (final f in files) {

@@ -16,7 +16,8 @@ Future<void> initializeMediaAudio() async {
         androidNotificationChannelId: 'noor_media_playback',
         androidNotificationChannelName: 'مشغل صوتيات نور العترة',
         androidNotificationIcon: 'drawable/ic_notification',
-        androidStopForegroundOnPause: false,
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
       ),
     );
   } catch (e) {

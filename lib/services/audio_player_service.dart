@@ -407,7 +407,9 @@ class AudioPlayerService extends ChangeNotifier {
     } finally {
       if (generation == _playGeneration) {
         _isTransitioningTrack = false;
-        _playerState = _player.state;
+        if (_player.state == PlayerState.playing || _player.state == PlayerState.paused) {
+          _playerState = _player.state;
+        }
         notifyListeners();
       }
     }

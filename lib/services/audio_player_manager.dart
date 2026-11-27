@@ -7,6 +7,7 @@ import '../models/reciter.dart';
 import 'quran_api_service.dart';
 import 'quran_audio_download_service.dart';
 import 'audio_player_service.dart';
+import 'media_audio_handler.dart';
 
 class AudioPlayerManager extends ChangeNotifier {
   static final AudioPlayerManager _instance = AudioPlayerManager._internal();
@@ -92,6 +93,7 @@ class AudioPlayerManager extends ChangeNotifier {
 
   /// Play a specific track directly
   Future<void> playTrack(AudioTrackInfo track) async {
+    await initializeMediaAudio();
     if (track.category != 'quran_surah' && track.category != 'quran_verse') {
       _currentSurahId = null;
       _currentSurahName = null;
