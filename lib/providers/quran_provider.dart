@@ -27,7 +27,7 @@ class QuranProvider extends ChangeNotifier {
   List<ReciterStyle> get reciterStyles => _reciterStyles;
   int get selectedStyleIndex => _selectedStyleIndex;
   List<QuranBookmark> get bookmarks => List.unmodifiable(_bookmarks);
-  String get readingMode => 'uthmani';
+  String get readingMode => _readingMode;
   bool get isUthmanicMode => true;
   ReciterStyle? get currentStyle =>
       _reciterStyles.isNotEmpty && _selectedStyleIndex < _reciterStyles.length

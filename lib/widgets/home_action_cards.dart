@@ -154,7 +154,7 @@ class HomeActionCards extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Container(
-      height: 90,
+      constraints: const BoxConstraints(minHeight: 90),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
@@ -173,7 +173,7 @@ class HomeActionCards extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -212,7 +212,8 @@ class HomeActionCards extends StatelessWidget {
                     color: textColor,
                   ),
                   textAlign: TextAlign.center,
-                  maxLines: 1,
+                  softWrap: true,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -234,8 +235,8 @@ class HomeActionCards extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
@@ -300,13 +301,16 @@ class HomeActionCards extends StatelessWidget {
                     const SizedBox(height: 1),
                     Text(
                       subtitle,
+                      textAlign: TextAlign.justify,
+                      softWrap: true,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 9.5,
+                        height: 1.25,
                         color: isDark ? Colors.white60 : const Color(0xFF64748B),
                         fontWeight: FontWeight.normal,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

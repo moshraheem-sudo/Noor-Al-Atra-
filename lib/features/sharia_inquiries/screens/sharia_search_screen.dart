@@ -486,7 +486,7 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
-                  childAspectRatio: 3.35,
+                  childAspectRatio: 3.0,
                 ),
                 itemBuilder: (context, index) {
                   final topic = _suggestedTopics[index];
@@ -495,7 +495,7 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
                     onTap: () => _performSearch(overrideQuery: topic),
                     child: Container(
                       alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: isDark
@@ -519,20 +519,21 @@ class _ShariaSearchScreenState extends State<ShariaSearchScreen> {
                         children: [
                           Icon(
                             Icons.auto_awesome_rounded,
-                            size: 14,
+                            size: 13,
                             color: accent,
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 5),
                           Flexible(
                             child: Text(
                               topic,
-                              maxLines: 1,
+                              softWrap: true,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 13.5,
+                                fontSize: 12.0,
                                 fontWeight: FontWeight.bold,
-                                letterSpacing: 0.4,
+                                letterSpacing: 0.2,
                                 color: isDark ? Colors.white : accent,
                               ),
                             ),

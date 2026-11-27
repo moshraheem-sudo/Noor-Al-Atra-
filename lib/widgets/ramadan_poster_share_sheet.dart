@@ -54,7 +54,6 @@ class _RamadanPosterShareSheetState extends State<RamadanPosterShareSheet> {
   final GlobalKey _posterKey = GlobalKey();
   ImsakiyaPosterTheme _currentTheme = ImsakiyaPosterTheme.classicPrint;
   bool _isExporting = false;
-  String? _lastSavedPath;
 
   Future<File?> _capturePosterImage() async {
     try {
@@ -145,19 +144,18 @@ class _RamadanPosterShareSheetState extends State<RamadanPosterShareSheet> {
           'imsakiya_ramadan_${widget.city.id}_${widget.hijriYear}.png';
       final File targetFile = File('${targetDir.path}/$fileName');
       await file.copy(targetFile.path);
-      _lastSavedPath = targetFile.path;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white),
-                const SizedBox(width: 8),
+                Icon(Icons.check_circle_rounded, color: Colors.white),
+                SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '✓ تم تنزيل وحفظ الإمساكية في مجلد التنزيلات (Download)',
-                    style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
                   ),
                 ),
               ],

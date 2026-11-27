@@ -66,8 +66,10 @@ class ShariaResultCard extends StatelessWidget {
               // Question title
               Text(
                 item.title,
+                textAlign: TextAlign.justify,
+                textDirection: TextDirection.rtl,
                 style: TextStyle(
-                  fontSize: 15.5,
+                  fontSize: 14.0,
                   fontWeight: FontWeight.bold,
                   height: 1.45,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
@@ -79,10 +81,12 @@ class ShariaResultCard extends StatelessWidget {
                 Text(
                   item.question,
                   textAlign: TextAlign.justify,
-                  maxLines: 2,
+                  textDirection: TextDirection.rtl,
+                  softWrap: true,
+                  maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13.2,
+                    fontSize: 12.0,
                     height: 1.5,
                     color: isDark ? Colors.white70 : const Color(0xFF475569),
                   ),
@@ -104,11 +108,13 @@ class ShariaResultCard extends StatelessWidget {
                 child: Text(
                   item.answer,
                   textAlign: TextAlign.justify,
-                  maxLines: 4,
+                  textDirection: TextDirection.rtl,
+                  softWrap: true,
+                  maxLines: 6,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13.8,
-                    height: 1.65,
+                    fontSize: 12.5,
+                    height: 1.6,
                     color: isDark ? Colors.white.withValues(alpha: 0.92) : const Color(0xFF1E293B),
                   ),
                 ),

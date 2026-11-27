@@ -96,7 +96,7 @@ class SettingsController extends ChangeNotifier {
   int _hijriManualOffset = 0;
 
   // Getters
-  bool get quranNotifications => false;
+  bool get quranNotifications => _quranNotifications;
   bool get eventsNotifications => _eventsNotifications;
   bool get dailyDeedsNotifications => _dailyDeedsNotifications;
   bool get taqeebatNotifications => _taqeebatNotifications;

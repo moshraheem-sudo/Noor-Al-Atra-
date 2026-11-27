@@ -8,7 +8,6 @@ import '../services/data_service.dart';
 import '../services/hijri_date_service.dart';
 import '../models/quran_chapter.dart';
 import '../models/worship_item.dart';
-import '../providers/prayer_provider.dart';
 import '../services/settings_controller.dart';
 import '../widgets/collapsible_prayer_card.dart';
 import '../widgets/home_action_cards.dart';
@@ -547,49 +546,102 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
 
-                // 3. Today's Deed Card (أعمال اليوم متغيرة حسب اليوم وتفتح قائمة الأعمال)
+                // 3. Today's Deed Card (أعمال اليوم متغيرة حسب اليوم وتفتح قائمة الأعمال) - ألوان متطابقة مع بطاقة مواقيت الصلاة
                 if (settings.showDailyDeedsBanner) ...[
                   InkWell(
                     onTap: () => _showDailyDeedsSheet(context, dailyDeeds, hijriInfo['weekday'] as String),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF231C30) : const Color(0xFFF7EFF8),
-                        borderRadius: BorderRadius.circular(16),
+                        color: isDark ? const Color(0xFF161E28) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isDark ? const Color(0xFFD8B4FE).withValues(alpha: 0.4) : const Color(0xFFE9D5FF),
+                          color: isDark ? const Color(0xFF1E88E5).withValues(alpha: 0.35) : const Color(0xFFBFDBFE),
                           width: 1.2,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.notifications, color: isDark ? const Color(0xFFC084FC) : const Color(0xFF1E3A8A), size: 18),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E3A5F) : const Color(0xFFE8F1FC),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF38BDF8).withValues(alpha: 0.4) : const Color(0xFFBFDBFE),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.calendar_today_rounded,
+                              color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF1E40AF),
+                              size: 17,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'أعمال اليوم (${hijriInfo['weekday']})',
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark ? const Color(0xFFE9D5FF) : const Color(0xFF64748B),
-                                    fontWeight: FontWeight.normal,
+                                    fontSize: 11.5,
+                                    color: isDark ? const Color(0xFF7DD3FC) : const Color(0xFF2563EB),
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   primaryDeedTitle,
+                                  textAlign: TextAlign.justify,
+                                  softWrap: true,
+                                  maxLines: 2,
                                   style: TextStyle(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Icon(Icons.notifications, color: isDark ? const Color(0xFFC084FC) : const Color(0xFF1E3A8A), size: 18),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E3A5F) : const Color(0xFFDDEBF7),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF38BDF8).withValues(alpha: 0.4) : const Color(0xFFBFDBFE),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.arrow_back_ios_new, color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF2A5A84), size: 10),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'عرض الكل',
+                                  style: TextStyle(
+                                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF2A5A84),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -641,8 +693,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       child: Row(
                         children: [
                           Container(
-                            width: 42,
-                            height: 42,
+                            width: 38,
+                            height: 38,
                             decoration: BoxDecoration(
                               color: isDark
                                   ? const Color(0xFF10B981).withValues(alpha: 0.16)
@@ -652,10 +704,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             child: Icon(
                               Icons.question_answer_rounded,
                               color: isDark ? const Color(0xFF10B981) : const Color(0xFF0284C7),
-                              size: 22,
+                              size: 20,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -663,7 +715,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 Text(
                                   'المجيب • اسأل عن المسائل الشرعية',
                                   style: TextStyle(
-                                    fontSize: 14.5,
+                                    fontSize: 13.0,
                                     fontWeight: FontWeight.bold,
                                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
@@ -671,10 +723,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 const SizedBox(height: 2),
                                 Text(
                                   'ابحث عن الفتاوى والأجوبة المنشورة وفق مدرسة أهل البيت (ع)',
-                                  maxLines: 1,
+                                  textAlign: TextAlign.justify,
+                                  softWrap: true,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11.0,
+                                    height: 1.35,
                                     color: isDark ? Colors.white70 : const Color(0xFF475569),
                                   ),
                                 ),
@@ -695,14 +750,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               children: [
                                 Icon(
                                   Icons.search_rounded,
-                                  size: 15,
+                                  size: 14,
                                   color: isDark ? const Color(0xFF34D399) : const Color(0xFF0284C7),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   'بحث',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.bold,
                                     color: isDark ? const Color(0xFF34D399) : const Color(0xFF0284C7),
                                   ),

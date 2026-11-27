@@ -63,17 +63,15 @@ class AdhanSchedulerService {
     // Immediate force update of sticky prayer notification
     final savedCity = StorageService().getSavedCity() ?? CityLocation.defaultCity;
     KafeelApiService.getPrayerTimes(savedCity, targetDate: DateTime.now()).then((times) {
-      if (times != null) {
-        _cachedPrayerTimes = times;
-        AppNotificationService().updateStickyPrayerTimesNotification(
-          fajr: times.fajr,
-          sunrise: times.sunrise,
-          dhuhr: times.dhuhr,
-          asr: times.asr,
-          maghrib: times.maghrib,
-          isha: times.isha,
-        );
-      }
+      _cachedPrayerTimes = times;
+      AppNotificationService().updateStickyPrayerTimesNotification(
+        fajr: times.fajr,
+        sunrise: times.sunrise,
+        dhuhr: times.dhuhr,
+        asr: times.asr,
+        maghrib: times.maghrib,
+        isha: times.isha,
+      );
     });
   }
 
