@@ -1592,8 +1592,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildInfoTableRow('سنة الإصدار والتوثيق', '2026 م - 1448 هـ', isDark),
                   const Divider(height: 14),
                   _buildInfoTableRow(
-                    'المصادر والتوثيق',
-                    'تقويم ومناسبات أهل البيت (ع) • القرآن الكريم ومواقيت الصلاة',
+                    'التوثيق والمصادر',
+                    'تقويم أهل البيت (ع)',
                     isDark,
                   ),
                 ],
@@ -1650,6 +1650,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildInfoTableRow(String label, String value, bool isDark, {bool isBadge = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           label,
@@ -1659,6 +1660,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: isDark ? Colors.white70 : const Color(0xFF475569),
           ),
         ),
+        const SizedBox(width: 10),
         if (isBadge)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -1681,13 +1683,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           )
         else
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-              color: isDark ? Colors.white : const Color(0xFF1B3A57),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: isDark ? Colors.white : const Color(0xFF1B3A57),
+              ),
             ),
           ),
       ],
