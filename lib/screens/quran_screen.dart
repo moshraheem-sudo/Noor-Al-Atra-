@@ -13,6 +13,7 @@ import '../widgets/ayah_number_symbol.dart';
 import 'quran_reader_screen.dart';
 import 'reciters_screen.dart';
 import 'khatma_screen.dart';
+import 'tafseer/tafseer_home_screen.dart';
 
 class QuranScreen extends StatefulWidget {
   const QuranScreen({super.key});
@@ -529,6 +530,17 @@ class _QuranScreenState extends State<QuranScreen> {
                     },
                   ),
                   IconButton(
+                    icon: const Icon(Icons.auto_stories_rounded, size: 23),
+                    color: const Color(0xFF059669),
+                    tooltip: 'تفسير القرآن الكريم',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const TafseerHomeScreen()),
+                      );
+                    },
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.bookmark_rounded, size: 24),
                     color: isDark ? Colors.white70 : const Color(0xFF0F172A),
                     tooltip: 'العلامات المحفوظة',
@@ -680,6 +692,14 @@ class _QuranScreenState extends State<QuranScreen> {
           ),
           const SizedBox(height: 8),
         ] else ...[
+          const SizedBox(height: 8),
+
+          // Tafseer Quran Banner Card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildTafseerBannerCard(context, isDark),
+          ),
+
           const SizedBox(height: 12),
           // Section Title: "السور الكريمة"
           Padding(
@@ -735,6 +755,138 @@ class _QuranScreenState extends State<QuranScreen> {
             color: isSelected
                 ? Colors.white
                 : (isDark ? Colors.white70 : const Color(0xFF475569)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTafseerBannerCard(BuildContext context, bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF064E3B), const Color(0xFF0F766E), const Color(0xFF042F2E)]
+              : [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)],
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: isDark ? 0.6 : 0.4),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF059669).withValues(alpha: isDark ? 0.25 : 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TafseerHomeScreen()),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                // Icon in Golden Ring
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+                    border: Border.all(color: const Color(0xFFD4AF37), width: 1.2),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.auto_stories_rounded,
+                      color: Color(0xFFFDE68A),
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Title and subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'تفسير القرآن',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF064E3B),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'جديد',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFD4AF37),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'تفسير الميزان للطباطبائي • تفسير الصافي للكاشاني',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white70 : const Color(0xFF047857),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Arrow Action Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF059669),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'تصفح',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 3),
+                      Icon(Icons.arrow_back_ios_new_rounded, size: 11, color: Colors.white),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

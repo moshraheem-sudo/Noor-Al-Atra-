@@ -51,9 +51,9 @@ class WallpaperService {
     'architecture': 'https://raw.githubusercontent.com/moshraheem-sudo/Islamic-Shrines-Wallpapers/main/data/categories/architecture.json',
   };
 
-  static const String _prefsCacheKey = 'cached_islamic_wallpapers_v4';
-  static const String _prefsVersionKey = 'cached_islamic_version_v4';
-  static const String _prefsLastSyncKey = 'cached_islamic_last_sync_v4';
+  static const String _prefsCacheKey = 'cached_islamic_wallpapers_v5';
+  static const String _prefsVersionKey = 'cached_islamic_version_v5';
+  static const String _prefsLastSyncKey = 'cached_islamic_last_sync_v5';
 
   List<WallpaperItem> _cachedList = [];
 

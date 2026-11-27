@@ -504,7 +504,7 @@ class _RecitersScreenState extends State<RecitersScreen> {
           const SizedBox(height: 12),
           Text(
             _selectedFilterIndex == 1
-                ? 'لا يوجد قراء في المفضلة حالياً'
+                ? 'لا توجد سور أو قراء في المفضلة حالياً'
                 : 'لا توجد سور محملة لهذا القارئ بعد',
             style: TextStyle(
               fontSize: 15,

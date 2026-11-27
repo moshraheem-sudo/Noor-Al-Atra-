@@ -131,6 +131,13 @@ class QuranChapter {
     QuranChapter(id: 113, nameArabic: 'الفلق', nameSimple: 'Al-Falaq', revelationPlace: 'makkah', versesCount: 5),
     QuranChapter(id: 114, nameArabic: 'الناس', nameSimple: 'An-Nas', revelationPlace: 'makkah', versesCount: 6),
   ];
+
+  static QuranChapter? getChapterById(int id) {
+    if (id >= 1 && id <= allChapters.length) {
+      return allChapters[id - 1];
+    }
+    return null;
+  }
 }
 
 class VerseItem {

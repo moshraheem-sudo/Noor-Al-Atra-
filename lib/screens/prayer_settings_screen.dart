@@ -1151,7 +1151,7 @@ class _PrayerSettingsScreenState extends State<PrayerSettingsScreen> with Widget
                 inactiveTrackColor: colors.switchInactiveTrack,
                 onChanged: (val) async {
                   await settings.setStickyPrayerNotification(val);
-                  if (val && context.mounted) {
+                  if (context.mounted) {
                     context.read<PrayerProvider>().syncStickyNotificationNow();
                   }
                 },

@@ -1,7 +1,7 @@
 name: flutter_noor_alatra
 description: "تطبيق نور العترة - مواقيت الصلاة وفق مركز الكفيل، القرآن الكريم، الأدعية والزيارات والصوتيات، مسبحة الزهراء، القبلة، عداد الركعات"
 publish_to: 'none'
-version: 5.83.0+583
+version: 5.84.0+584
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -30,6 +30,8 @@ dependencies:
   timezone: ^0.11.1
   webview_flutter: ^4.14.1
   audio_service: 0.18.19
+  sqflite: any
+  path: any
 
 dev_dependencies:
   flutter_test:
